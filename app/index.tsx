@@ -1,61 +1,50 @@
-import { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { testBackendConnection } from "../services/api";
+import { createClient } from "@supabase/supabase-js";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+import OpenAI from "openai";
 
-export default function HomeScreen() {
-  const [message, setMessage] = useState("Bağlanmaya hazır!");
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Şifreleri fonksiyonun içinde çekiyoruz
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
 
-  const handleConnect = async () => {
-    setMessage("Vercel'e gidiliyor...");
-    try {
-      const result = await testBackendConnection();
-      if (result.success) {
-        setMessage(`💖 BAĞLANTI BAŞARILI: ${result.message}`);
-      } else {
-        // Eğer backend'den gelen success false ise burası çalışır
-        setMessage(`❌ Backend Mesajı: ${result.error || result.message}`);
-      }
-    } catch (error) {
-      setMessage("❌ Ağ Hatası: Vercel linkini kontrol et.");
+  // Hata ayıklama modumuz: Eğer GET isteği atarsan şifrelerin durumunu görürsün
+  if (req.method === "GET") {
+    return res.status(200).json({
+      status: "Sistem Mesajı",
+      supabaseUrl: supabaseUrl ? "Tanimli ✅" : "EKSIK ❌",
+      supabaseKey: supabaseKey ? "Tanimli ✅" : "EKSIK ❌",
+      openaiKey: openaiKey ? "Tanimli ✅" : "EKSIK ❌",
+    });
+  }
+
+  // Şifre kontrolü
+  if (!supabaseUrl || !supabaseKey) {
+    return res
+      .status(200)
+      .json({
+        error:
+          "Sistemde eksik anahtarlar var. Lütfen Vercel panelini kontrol et.",
+      });
+  }
+
+  try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const openai = new OpenAI({ apiKey: openaiKey || "" });
+
+    const { action } = req.body;
+
+    if (action === "START_ROMANCE") {
+      return res.status(200).json({
+        success: true,
+        message: "OpenAI ve Supabase hazir! Ask hikayesi basliyor...",
+      });
     }
-  };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Romance AI 🌹</Text>
-      <Text style={styles.message}>{message}</Text>
-      <TouchableOpacity style={styles.button} onPress={handleConnect}>
-        <Text style={styles.buttonText}>Backend'i Test Et</Text>
-      </TouchableOpacity>
-    </View>
-  );
+    return res
+      .status(200)
+      .json({ message: "Post istegi basarili ama aksiyon tanimsiz." });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff0f5",
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#ff1493",
-    marginBottom: 20,
-  },
-  message: {
-    fontSize: 16,
-    color: "#333",
-    textAlign: "center",
-    marginHorizontal: 20,
-    marginBottom: 40,
-  },
-  button: {
-    backgroundColor: "#ff69b4",
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 25,
-  },
-  buttonText: { color: "white", fontSize: 18, fontWeight: "bold" },
-});
