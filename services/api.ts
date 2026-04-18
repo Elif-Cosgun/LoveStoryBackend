@@ -1,7 +1,7 @@
 // services/api.ts
 
 // BURAYA VERCEL'DEN KOPYALADIĞIN LİNKİ YAPIŞTIR (Sonunda /api olmak zorunda!)
-const BASE_URL = "https://love-story-backend-8x5szjdrm-ed13.vercel.app";
+const BASE_URL = "https://love-story-backend-8x5szjdrm-ed13.vercel.app/api";
 
 export const testBackendConnection = async () => {
   try {
