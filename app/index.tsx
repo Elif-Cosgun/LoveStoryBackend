@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Slider from "@react-native-community/slider";
 import { Audio } from "expo-av";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -14,7 +14,7 @@ import {
   Trash2,
   X,
 } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -52,7 +52,7 @@ const exampleThemes = [
     id: 3,
     title: "Düşmanlıktan Aşka",
     prompt:
-      "İş yerinde sürekli rekabet ettiğin çekici iş arkadaşınla asansörde mahsur kalmak.",
+      "İş yerinde rekabet ettiğin çekici iş arkadaşınla asansörde mahsur kalmak.",
   },
 ];
 
@@ -74,12 +74,20 @@ export default function HomeScreen() {
   const [musicVolume, setMusicVolume] = useState(0.3);
   const [isTtsEnabled, setIsTtsEnabled] = useState(true);
   const [ttsVolume, setTtsVolume] = useState(1.0);
+  const [isSfxEnabled, setIsSfxEnabled] = useState(true);
+  const [sfxVolume, setSfxVolume] = useState(1.0);
 
-  const bgmSound = React.useRef<Audio.Sound | null>(null);
+  const bgmSound = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
     const initializeApp = async () => {
       try {
+        await Audio.setAudioModeAsync({
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+        });
+
         let storedId = await SecureStore.getItemAsync("user_unique_id");
         if (!storedId) {
           storedId = `user_${Math.random().toString(36).substring(2, 9)}`;
@@ -97,11 +105,15 @@ export default function HomeScreen() {
           setIsMusicEnabled((await getBool("musicEnabled")) === "true");
         if ((await getBool("ttsEnabled")) !== null)
           setIsTtsEnabled((await getBool("ttsEnabled")) === "true");
+        if ((await getBool("sfxEnabled")) !== null)
+          setIsSfxEnabled((await getBool("sfxEnabled")) === "true");
 
         const mVol = await getFloat("musicVolume");
         if (mVol !== null) setMusicVolume(mVol);
         const tVol = await getFloat("ttsVolume");
         if (tVol !== null) setTtsVolume(tVol);
+        const sVol = await getFloat("sfxVolume");
+        if (sVol !== null) setSfxVolume(sVol);
 
         SplashScreen.hideAsync();
       } catch (e) {
@@ -111,19 +123,50 @@ export default function HomeScreen() {
     initializeApp();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      const startMusic = async () => {
+        try {
+          if (!bgmSound.current) {
+            const { sound } = await Audio.Sound.createAsync(
+              require("../assets/voices/happy.mp3"),
+              {
+                isLooping: true,
+                volume: isMusicEnabled ? musicVolume : 0,
+                shouldPlay: isMusicEnabled,
+              },
+            );
+            if (isActive) bgmSound.current = sound;
+            else sound.unloadAsync();
+          } else if (isMusicEnabled) {
+            await bgmSound.current.playAsync();
+            await bgmSound.current.setVolumeAsync(musicVolume);
+          }
+        } catch (e) {
+          console.log("Müzik bulunamadı.");
+        }
+      };
+      startMusic();
+      return () => {
+        isActive = false;
+        if (bgmSound.current) bgmSound.current.pauseAsync();
+      };
+    }, [isMusicEnabled, musicVolume]),
+  );
+
   const playClickSound = async () => {
+    if (!isSfxEnabled) return;
     try {
       const { sound } = await Audio.Sound.createAsync(
         require("../assets/voices/click.mp3"),
       );
-      await sound.setVolumeAsync(1.0);
+      await sound.setVolumeAsync(sfxVolume);
       await sound.playAsync();
       sound.setOnPlaybackStatusUpdate((s: any) => {
         if (s.didJustFinish) sound.unloadAsync();
       });
-    } catch (e) {
-      console.log("Click sound not found");
-    }
+    } catch (e) {}
   };
 
   const startGame = async () => {
@@ -145,8 +188,10 @@ export default function HomeScreen() {
         userId: userId,
         initialMusic: isMusicEnabled ? "true" : "false",
         initialTts: isTtsEnabled ? "true" : "false",
+        initialSfx: isSfxEnabled ? "true" : "false",
         musicVolume: musicVolume.toString(),
         ttsVolume: ttsVolume.toString(),
+        sfxVolume: sfxVolume.toString(),
       },
     });
   };
@@ -186,139 +231,133 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaProvider style={{ flex: 1, backgroundColor: "#fff0f5" }}>
+    <SafeAreaProvider style={styles.mainWrapper}>
       <ImageBackground
         source={{
           uri: "https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=1080&auto=format&fit=crop",
         }}
-        style={styles.container}
+        style={styles.bgImage}
         resizeMode="cover"
       >
         <StatusBar style="light" />
+        <View style={styles.overlay} />
         <SafeAreaView style={styles.safeArea}>
-          <View style={styles.overlay}>
-            <View style={styles.topIconBar}>
-              <TouchableOpacity
-                onPress={() => {
-                  playClickSound();
-                  setIsSettingsVisible(true);
-                }}
-                style={styles.smallIconBtn}
-              >
-                <Settings size={20} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={openHistory}
-                style={styles.smallIconBtn}
-              >
-                <BookOpen size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              style={styles.keyboardView}
+          {/* ÜST BAR */}
+          <View style={styles.topIconBar}>
+            <TouchableOpacity
+              onPress={() => {
+                playClickSound();
+                setIsSettingsVisible(true);
+              }}
+              style={styles.smallIconBtn}
             >
-              <View style={styles.content}>
-                <View style={styles.header}>
-                  <Text style={styles.mainTitle}>LOVE STORY</Text>
+              <Settings size={20} color="#ff1493" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={openHistory} style={styles.smallIconBtn}>
+              <BookOpen size={20} color="#ff1493" />
+            </TouchableOpacity>
+          </View>
+
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.keyboardView}
+          >
+            <View style={styles.content}>
+              <View style={styles.header}>
+                <Text style={styles.mainTitle}>LOVE STORY</Text>
+                <Text style={styles.subTitle}>Kendi aşk romanını yaz...</Text>
+              </View>
+
+              <View style={styles.glassPanel}>
+                <View style={styles.inputSection}>
+                  <Text style={styles.sectionLabel}>
+                    HAYALİNDEKİ AŞK TEMASI
+                  </Text>
+                  <View style={styles.inputWrapper}>
+                    <Heart size={16} color="#ff1493" style={styles.inputIcon} />
+                    <TextInput
+                      placeholder="Kendi romantik hikayeni yaz..."
+                      placeholderTextColor="#ffb6c1"
+                      style={styles.input}
+                      value={theme}
+                      onChangeText={setTheme}
+                      maxLength={80}
+                    />
+                  </View>
                 </View>
 
-                <View style={styles.glassPanel}>
-                  <View style={styles.inputSection}>
-                    <Text style={styles.sectionLabel}>AŞK TEMANI BELİRLE</Text>
-                    <View style={styles.inputWrapper}>
-                      <Heart
-                        size={16}
-                        color="#ff1493"
-                        style={styles.inputIcon}
-                      />
-                      <TextInput
-                        placeholder="Kendi romantik hikayeni yaz..."
-                        placeholderTextColor="#ffb6c1"
-                        style={styles.input}
-                        value={theme}
-                        onChangeText={setTheme}
-                        maxLength={80}
-                      />
-                    </View>
-                  </View>
-
-                  <View style={styles.examplesSection}>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                    >
-                      {exampleThemes.map((item) => (
-                        <TouchableOpacity
-                          key={item.id}
+                <View style={styles.examplesSection}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    {exampleThemes.map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={[
+                          styles.card,
+                          theme === item.prompt && styles.activeCard,
+                        ]}
+                        onPress={() => {
+                          playClickSound();
+                          setTheme(item.prompt);
+                        }}
+                      >
+                        <Text
                           style={[
-                            styles.card,
-                            theme === item.prompt && styles.activeCard,
+                            styles.cardTitle,
+                            theme === item.prompt && styles.activeCardTitle,
                           ]}
+                        >
+                          {item.title}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                <View style={styles.durationSection}>
+                  <View style={styles.durationRow}>
+                    {["short", "medium", "long"].map((d, index) => (
+                      <React.Fragment key={d}>
+                        <TouchableOpacity
                           onPress={() => {
                             playClickSound();
-                            setTheme(item.prompt);
+                            setDuration(d);
                           }}
+                          style={styles.dButton}
                         >
                           <Text
                             style={[
-                              styles.cardTitle,
-                              theme === item.prompt && styles.activeCardTitle,
+                              styles.dText,
+                              duration === d && styles.activeDText,
                             ]}
                           >
-                            {item.title}
+                            {d === "short"
+                              ? "KISA"
+                              : d === "medium"
+                                ? "ORTA"
+                                : "UZUN"}
                           </Text>
                         </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                        {index < 2 && (
+                          <Text style={styles.durationSeparator}>|</Text>
+                        )}
+                      </React.Fragment>
+                    ))}
                   </View>
-
-                  <View style={styles.durationSection}>
-                    <View style={styles.durationRow}>
-                      {["short", "medium", "long"].map((d, index) => (
-                        <React.Fragment key={d}>
-                          <TouchableOpacity
-                            onPress={() => {
-                              playClickSound();
-                              setDuration(d);
-                            }}
-                            style={styles.dButton}
-                          >
-                            <Text
-                              style={[
-                                styles.dText,
-                                duration === d && styles.activeDText,
-                              ]}
-                            >
-                              {d === "short"
-                                ? "KISA"
-                                : d === "medium"
-                                  ? "ORTA"
-                                  : "UZUN"}
-                            </Text>
-                          </TouchableOpacity>
-                          {index < 2 && (
-                            <Text style={styles.durationSeparator}>|</Text>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.startTrigger}
-                    onPress={startGame}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.startTriggerText}>KALBİNİ AÇ</Text>
-                  </TouchableOpacity>
                 </View>
+
+                <TouchableOpacity
+                  style={styles.startTrigger}
+                  onPress={startGame}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.startTriggerText}>KALBİNİ AÇ</Text>
+                </TouchableOpacity>
               </View>
-            </KeyboardAvoidingView>
-          </View>
+            </View>
+          </KeyboardAvoidingView>
         </SafeAreaView>
 
+        {/* UYARI MODALI */}
         <Modal visible={isAlertVisible} animationType="fade" transparent={true}>
           <View style={styles.customAlertOverlay}>
             <View style={styles.customAlertBox}>
@@ -340,13 +379,14 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
+        {/* GEÇMİŞ MODALI (ORİJİNAL YAPI) */}
         <Modal
           visible={isHistoryVisible}
           animationType="slide"
           transparent={true}
         >
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+            <View style={[styles.modalContent, { height: height * 0.85 }]}>
               <View style={styles.modalHeader}>
                 <View>
                   <Text style={styles.modalTitle}>AŞK DEFTERİ</Text>
@@ -425,6 +465,26 @@ export default function HomeScreen() {
                       <TouchableOpacity
                         activeOpacity={0.7}
                         style={styles.adventureCard}
+                        onPress={() => {
+                          playClickSound();
+                          setIsHistoryVisible(false);
+                          router.push({
+                            pathname: "/game",
+                            params: {
+                              theme: item.theme,
+                              duration: "medium",
+                              adventureId: item.id,
+                              resumedHistory: JSON.stringify(item.history),
+                              userId,
+                              initialMusic: isMusicEnabled ? "true" : "false",
+                              initialSfx: isSfxEnabled ? "true" : "false",
+                              initialTts: isTtsEnabled ? "true" : "false",
+                              musicVolume: musicVolume.toString(),
+                              ttsVolume: ttsVolume.toString(),
+                              sfxVolume: sfxVolume.toString(),
+                            },
+                          });
+                        }}
                       >
                         <View style={styles.advContent}>
                           <Text style={styles.advTheme} numberOfLines={1}>
@@ -456,6 +516,7 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
+        {/* AYARLAR MODALI (ORİJİNAL YAPI) */}
         <Modal
           visible={isSettingsVisible}
           animationType="fade"
@@ -469,7 +530,10 @@ export default function HomeScreen() {
               ]}
             >
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>AYARLAR</Text>
+                <View>
+                  <Text style={styles.modalTitle}>AYARLAR</Text>
+                  <Text style={styles.modalSubtitle}>Sesi ve hissi ayarla</Text>
+                </View>
                 <TouchableOpacity
                   onPress={() => {
                     playClickSound();
@@ -530,7 +594,7 @@ export default function HomeScreen() {
                       Hikaye Seslendirmesi
                     </Text>
                     <Text style={styles.settingSubLabel}>
-                      Karakter okumaları (ElevenLabs)
+                      Karakter okumaları
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -565,6 +629,47 @@ export default function HomeScreen() {
                   }}
                 />
               </View>
+
+              <View style={styles.settingRowContainer}>
+                <View style={styles.settingTopRow}>
+                  <View>
+                    <Text style={styles.settingLabel}>Aşk Tıkırtısı</Text>
+                    <Text style={styles.settingSubLabel}>
+                      Buton tıklama sesi
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      playClickSound();
+                      const val = !isSfxEnabled;
+                      setIsSfxEnabled(val);
+                      await AsyncStorage.setItem("sfxEnabled", val.toString());
+                    }}
+                    style={[
+                      styles.toggleBtn,
+                      isSfxEnabled && styles.toggleBtnActive,
+                    ]}
+                  >
+                    <Text style={styles.toggleText}>
+                      {isSfxEnabled ? "AÇIK" : "KAPALI"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={0}
+                  maximumValue={1}
+                  step={0.1}
+                  value={sfxVolume}
+                  disabled={!isSfxEnabled}
+                  minimumTrackTintColor="#ff1493"
+                  thumbTintColor={isSfxEnabled ? "#ff1493" : "#444"}
+                  onValueChange={async (val) => {
+                    setSfxVolume(val);
+                    await AsyncStorage.setItem("sfxVolume", val.toString());
+                  }}
+                />
+              </View>
             </View>
           </View>
         </Modal>
@@ -573,84 +678,91 @@ export default function HomeScreen() {
   );
 }
 
+// STYLES (ORİJİNAL FATAL CHOICE İSKELETİ, PEMBE RENKLER)
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff0f5" },
-  safeArea: { flex: 1 },
+  mainWrapper: { flex: 1, backgroundColor: "#fff0f5" },
+  bgImage: { flex: 1 },
   overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255,240,245,0.6)",
   },
+  safeArea: { flex: 1 },
   topIconBar: {
-    position: "absolute",
-    top: 15,
-    left: 0,
-    right: 0,
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 25,
+    paddingTop: 10,
     zIndex: 10,
   },
   smallIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 20, 147, 0.6)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#ffb6c1",
+    shadowColor: "#ff1493",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
   },
   keyboardView: { flex: 1, width: "100%" },
   content: {
     flex: 1,
     width: "100%",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     paddingHorizontal: 25,
-    paddingTop: 80,
-    paddingBottom: 40,
   },
-  header: { alignItems: "center" },
+  header: { alignItems: "center", marginBottom: 30 },
   mainTitle: {
-    fontSize: 46,
-    fontWeight: "bold",
+    fontSize: 44,
+    fontWeight: "900",
     color: "#ff1493",
     textAlign: "center",
-    textShadowColor: "#fff",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    letterSpacing: 2,
   },
+  subTitle: { fontSize: 16, color: "#ff69b4", fontWeight: "600", marginTop: 5 },
   glassPanel: {
     width: "100%",
     maxWidth: 400,
     backgroundColor: "rgba(255,255,255,0.9)",
-    paddingVertical: 20,
-    paddingHorizontal: 22,
+    padding: 25,
     borderRadius: 25,
-    borderWidth: 2,
-    borderColor: "#ff69b4",
+    borderWidth: 1.5,
+    borderColor: "#ffb6c1",
     shadowColor: "#ff1493",
-    shadowOpacity: 0.5,
-    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
   },
   sectionLabel: {
     color: "#ff1493",
     fontSize: 14,
     fontWeight: "bold",
     marginBottom: 8,
+    letterSpacing: 1,
   },
   inputSection: { width: "100%", marginBottom: 15 },
   inputWrapper: {
     flexDirection: "row",
-    borderBottomWidth: 1.5,
+    borderBottomWidth: 2,
     borderBottomColor: "#ff1493",
     alignItems: "center",
     paddingHorizontal: 5,
     paddingVertical: 5,
   },
   inputIcon: { marginRight: 8 },
-  input: { flex: 1, padding: 8, color: "#333", fontSize: 16, height: 45 },
+  input: {
+    flex: 1,
+    padding: 8,
+    color: "#333",
+    fontSize: 16,
+    height: 45,
+    fontWeight: "500",
+  },
   examplesSection: { height: 45, width: "100%", marginBottom: 20 },
   card: {
     justifyContent: "center",
@@ -663,9 +775,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff0f5",
     height: 35,
   },
-  activeCard: { borderColor: "#ff1493", backgroundColor: "#ff1493" },
+  activeCard: {
+    borderColor: "#ff1493",
+    backgroundColor: "rgba(255, 20, 147, 0.15)",
+  },
   cardTitle: { color: "#ff69b4", fontSize: 14, fontWeight: "600" },
-  activeCardTitle: { color: "#fff", fontWeight: "bold" },
+  activeCardTitle: { color: "#ff1493", fontWeight: "bold" },
   durationSection: { width: "100%", marginBottom: 15 },
   durationRow: {
     flexDirection: "row",
@@ -685,12 +800,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#ff1493",
     paddingVertical: 15,
     width: "100%",
-    borderRadius: 30,
+    borderRadius: 25,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 5,
+    shadowColor: "#ff1493",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  startTriggerText: { color: "#fff", fontSize: 24, fontWeight: "bold" },
+  startTriggerText: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "bold",
+    letterSpacing: 1,
+  },
+
+  // Modals (Orijinal YAPI!)
   customAlertOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.6)",
@@ -723,25 +850,27 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   alertButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
   },
   modalContent: {
     width: width,
-    height: height * 0.8,
     backgroundColor: "#fff",
     borderTopLeftRadius: 35,
     borderTopRightRadius: 35,
     padding: 25,
+    borderWidth: 1.5,
+    borderColor: "#ffb6c1",
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 25,
+    marginBottom: 20,
   },
-  modalTitle: { color: "#ff1493", fontSize: 26, fontWeight: "bold" },
+  modalTitle: { color: "#ff1493", fontSize: 24, fontWeight: "bold" },
   modalSubtitle: { color: "#777", fontSize: 14 },
   modalCloseCircle: {
     width: 40,
@@ -750,13 +879,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ffb6c1",
   },
+
   tabContainer: {
     flexDirection: "row",
     marginBottom: 20,
     backgroundColor: "#fff0f5",
     borderRadius: 10,
     padding: 5,
+    borderWidth: 1,
+    borderColor: "#ffb6c1",
   },
   tabButton: {
     flex: 1,
@@ -766,34 +900,46 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 8,
   },
-  activeTab: { backgroundColor: "#ff1493" },
-  tabText: {
-    color: "#ff69b4",
-    fontSize: 14,
-    marginLeft: 8,
-    fontWeight: "bold",
-  },
-  activeTabText: { color: "#fff" },
+  activeTab: { backgroundColor: "rgba(255,20,147,0.15)" },
+  tabText: { color: "#333", fontSize: 14, marginLeft: 8, fontWeight: "bold" },
+  activeTabText: { color: "#ff1493" },
   cardWrapper: { marginBottom: 15 },
   adventureCard: {
-    backgroundColor: "#fff0f5",
+    backgroundColor: "#fff",
     padding: 15,
     borderRadius: 12,
     borderLeftWidth: 5,
     borderLeftColor: "#ff1493",
     flexDirection: "row",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 2,
   },
   advContent: { flex: 1 },
   advTheme: { color: "#ff1493", fontSize: 18, fontWeight: "bold" },
-  advHistory: { color: "#777", fontSize: 12, marginTop: 5 },
-  deleteBtnStatic: { padding: 10 },
+  advHistory: {
+    color: "#777",
+    fontSize: 12,
+    marginTop: 5,
+    fontStyle: "italic",
+  },
+  deleteBtnStatic: {
+    padding: 10,
+    backgroundColor: "rgba(255,0,0,0.05)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255,0,0,0.2)",
+  },
   emptyContainer: { alignItems: "center", marginTop: 50 },
+
   settingRowContainer: {
     marginVertical: 10,
     paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: "#ffe4e1",
   },
   settingTopRow: {
     flexDirection: "row",
@@ -802,14 +948,21 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   slider: { width: "100%", height: 40 },
-  settingLabel: { color: "#ff1493", fontSize: 18, fontWeight: "bold" },
-  settingSubLabel: { color: "#777", fontSize: 12 },
+  settingLabel: { color: "#333", fontSize: 18, fontWeight: "bold" },
+  settingSubLabel: { color: "#777", fontSize: 12, marginTop: 4 },
   toggleBtn: {
     paddingHorizontal: 15,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#eee",
+    borderRadius: 8,
+    backgroundColor: "#fff0f5",
+    borderWidth: 1,
+    borderColor: "#ffb6c1",
+    minWidth: 80,
+    alignItems: "center",
   },
-  toggleBtnActive: { backgroundColor: "#ff1493" },
-  toggleText: { color: "#fff", fontWeight: "bold" },
+  toggleBtnActive: {
+    backgroundColor: "rgba(255,20,147,0.15)",
+    borderColor: "#ff1493",
+  },
+  toggleText: { color: "#ff1493", fontWeight: "bold" },
 });

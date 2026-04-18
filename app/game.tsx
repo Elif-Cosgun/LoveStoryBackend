@@ -3,7 +3,14 @@ import Slider from "@react-native-community/slider";
 import { Audio } from "expo-av";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Heart, Home, RefreshCw, Settings, X } from "lucide-react-native";
+import {
+  Heart,
+  Home,
+  RefreshCw,
+  Settings,
+  Sparkles,
+  X,
+} from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,6 +21,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -46,7 +54,7 @@ export default function GameScreen() {
     params.initialMusic === "true",
   );
   const [musicVolume, setMusicVolume] = useState(
-    params.musicVolume ? parseFloat(params.musicVolume as string) : 0.2,
+    params.musicVolume ? parseFloat(params.musicVolume as string) : 0.3,
   );
   const [isTtsEnabled, setIsTtsEnabled] = useState(
     params.initialTts === "true",
@@ -54,21 +62,30 @@ export default function GameScreen() {
   const [ttsVolume, setTtsVolume] = useState(
     params.ttsVolume ? parseFloat(params.ttsVolume as string) : 1.0,
   );
+  const [isSfxEnabled, setIsSfxEnabled] = useState(
+    params.initialSfx === "true",
+  );
+  const [sfxVolume, setSfxVolume] = useState(
+    params.sfxVolume ? parseFloat(params.sfxVolume as string) : 1.0,
+  );
+
+  const [activeMiniGame, setActiveMiniGame] = useState<any>(null);
+  const [isMiniGameModalVisible, setIsMiniGameModalVisible] = useState(false);
+  const [riddleInput, setRiddleInput] = useState("");
+  const [riddleError, setRiddleError] = useState<string | null>(null);
 
   const bgmSound = useRef<Audio.Sound | null>(null);
   const ttsSound = useRef<Audio.Sound | null>(null);
-
   const scrollViewRef = useRef<ScrollView>(null);
   const requestCounter = useRef(0);
   const isMounted = useRef(true);
 
-  // Arka plan müziği (happy.mp3)
   useEffect(() => {
     isMounted.current = true;
     const startMusic = async () => {
       try {
         const { sound } = await Audio.Sound.createAsync(
-          require("../assets/voices/happy.mp3"), // BURASI GÜNCELLENDİ
+          require("../assets/voices/happy.mp3"),
           {
             isLooping: true,
             volume: isMusicEnabled ? musicVolume : 0,
@@ -77,7 +94,7 @@ export default function GameScreen() {
         );
         if (isMounted.current) bgmSound.current = sound;
       } catch (e) {
-        console.log("BGM Error", e);
+        console.log("Arka plan müziği yüklenemedi.");
       }
     };
     startMusic();
@@ -109,10 +126,12 @@ export default function GameScreen() {
   }, [isMusicEnabled, musicVolume]);
 
   const playClickSound = async () => {
+    if (!isSfxEnabled) return;
     try {
       const { sound } = await Audio.Sound.createAsync(
         require("../assets/voices/click.mp3"),
       );
+      await sound.setVolumeAsync(sfxVolume);
       await sound.playAsync();
       sound.setOnPlaybackStatusUpdate((s: any) => {
         if (s.didJustFinish) sound.unloadAsync();
@@ -145,6 +164,8 @@ export default function GameScreen() {
       const myReq = requestCounter.current;
       setIsLoading(true);
       setDisplayedText("");
+      setActiveMiniGame(null);
+      setIsMiniGameModalVisible(false);
 
       if (ttsSound.current) {
         await ttsSound.current.unloadAsync();
@@ -176,13 +197,14 @@ export default function GameScreen() {
         if (data) {
           if (data.adventureId) setAdventureId(data.adventureId);
           setInventory(data.inventory || []);
+          if (data.miniGame) setActiveMiniGame(data.miniGame);
+
           setCurrentPart(data);
           setIsLoading(false);
 
           if (choice && choice !== "[RESUME]")
             setHistory((prev) => [...prev, choice]);
 
-          // TTS (Seslendirme) İŞLEMİ
           let audioUris: any[] = [];
           if (isTtsEnabled && data.parts) {
             audioUris = await Promise.all(
@@ -208,7 +230,6 @@ export default function GameScreen() {
             }
           }, 35);
 
-          // Sesleri Sırayla Çal
           if (data.parts) {
             for (let i = 0; i < data.parts.length; i++) {
               if (!isMounted.current || requestCounter.current !== myReq) break;
@@ -238,6 +259,25 @@ export default function GameScreen() {
     playClickSound();
     if (currentPart?.isEnd || isLoading || isTyping) return;
     loadNextStep(opt, history, adventureId);
+  };
+
+  const handleRiddleSubmit = () => {
+    playClickSound();
+    if (!riddleInput.trim() || !activeMiniGame) return;
+    if (
+      riddleInput.toLowerCase().trim() ===
+      activeMiniGame.answer.toLowerCase().trim()
+    ) {
+      setActiveMiniGame(null);
+      setIsMiniGameModalVisible(false);
+      loadNextStep(
+        "[SİSTEM: Oyuncu engeli tatlı bir şekilde aştı, hikayeyi romantik ilerlet.]",
+        history,
+        adventureId,
+      );
+    } else {
+      setRiddleError("Bu cevap kalbini çalmaya yetmedi... Tekrar düşün.");
+    }
   };
 
   return (
@@ -301,7 +341,11 @@ export default function GameScreen() {
                     onPress={goHome}
                   >
                     <View style={styles.gothicButtonInner}>
-                      <Home color="#fff" size={16} style={{ marginRight: 8 }} />
+                      <Home
+                        color="#ff1493"
+                        size={16}
+                        style={{ marginRight: 8 }}
+                      />
                       <Text style={styles.gothicButtonText}>ANA SAYFA</Text>
                     </View>
                   </TouchableOpacity>
@@ -311,7 +355,7 @@ export default function GameScreen() {
                   >
                     <View style={styles.gothicButtonInner}>
                       <RefreshCw
-                        color="#fff"
+                        color="#ff1493"
                         size={16}
                         style={{ marginRight: 8 }}
                       />
@@ -383,45 +427,127 @@ export default function GameScreen() {
               </View>
 
               <View style={styles.optionsPanel}>
-                {currentPart?.options?.map((opt: string, index: number) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.optionButton,
-                      (isTyping || isLoading) && { opacity: 0.6 },
-                    ]}
-                    onPress={() => handleOptionSelect(opt)}
-                    disabled={isLoading || isTyping}
-                  >
-                    <Text style={styles.optionText}>
-                      {isLoading ? "..." : opt}
-                    </Text>
-                    <Heart color={isTyping ? "#aaa" : "#ff1493"} size={16} />
-                  </TouchableOpacity>
-                ))}
+                {currentPart?.options?.map((opt: string, index: number) => {
+                  const isMiniGameTrigger = activeMiniGame && index === 0;
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.optionButton,
+                        (isTyping || isLoading) && { opacity: 0.6 },
+                        isMiniGameTrigger && styles.miniGameTriggerButton,
+                      ]}
+                      onPress={() => {
+                        if (isMiniGameTrigger) {
+                          playClickSound();
+                          setIsMiniGameModalVisible(true);
+                        } else handleOptionSelect(opt);
+                      }}
+                      disabled={isLoading || isTyping}
+                    >
+                      <Text
+                        style={[
+                          styles.optionText,
+                          isMiniGameTrigger && { color: "#fff" },
+                        ]}
+                      >
+                        {isLoading ? "..." : opt}
+                      </Text>
+                      {isMiniGameTrigger ? (
+                        <Sparkles color="#fff" size={16} />
+                      ) : (
+                        <Heart
+                          color={isTyping ? "#aaa" : "#ff1493"}
+                          size={16}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           </SafeAreaView>
         </ImageBackground>
       )}
 
-      {/* AYARLAR MODALI */}
+      {/* MİNİ OYUN MODALI */}
+      <Modal
+        visible={isMiniGameModalVisible}
+        animationType="fade"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[styles.modalContent, { height: "auto", paddingBottom: 40 }]}
+          >
+            <TouchableOpacity
+              style={styles.miniGameCloseBtn}
+              onPress={() => {
+                playClickSound();
+                setIsMiniGameModalVisible(false);
+              }}
+            >
+              <X color="#ff1493" size={20} />
+            </TouchableOpacity>
+
+            <View style={{ width: "100%", alignItems: "center" }}>
+              <Heart color="#ff1493" size={32} style={{ marginBottom: 10 }} />
+              <Text style={styles.modalTitle}>AŞK FISILTISI</Text>
+              <Text
+                style={[
+                  styles.modalSubtitle,
+                  { marginBottom: 20, textAlign: "center" },
+                ]}
+              >
+                {activeMiniGame?.question ||
+                  "Onun kalbini çalacak doğru kelimeyi bul."}
+              </Text>
+              <View style={styles.riddleInputRow}>
+                <TextInput
+                  style={styles.riddleInput}
+                  placeholder="Cevabın..."
+                  placeholderTextColor="#ffb6c1"
+                  value={riddleInput}
+                  onChangeText={setRiddleInput}
+                />
+                <TouchableOpacity
+                  style={styles.riddleSubmitBtn}
+                  onPress={handleRiddleSubmit}
+                >
+                  <Heart color="#fff" size={20} />
+                </TouchableOpacity>
+              </View>
+              {riddleError && (
+                <Text style={styles.riddleErrorText}>{riddleError}</Text>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* AYARLAR MODALI (ORİJİNAL YAPI) */}
       <Modal
         visible={isSettingsVisible}
         animationType="fade"
         transparent={true}
       >
-        <View style={styles.settingsModalOverlay}>
-          <View style={styles.settingsModalContent}>
-            <View style={styles.settingsModalHeader}>
-              <Text style={styles.settingsModalTitle}>AYARLAR</Text>
+        <View style={styles.modalOverlay}>
+          <View
+            style={[styles.modalContent, { height: "auto", paddingBottom: 40 }]}
+          >
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>AYARLAR</Text>
+                <Text style={styles.modalSubtitle}>Sesi ve hissi ayarla</Text>
+              </View>
               <TouchableOpacity
                 onPress={() => {
                   playClickSound();
                   setIsSettingsVisible(false);
                 }}
+                style={styles.modalCloseCircle}
               >
-                <X color="#ff1493" size={24} />
+                <X color="#ff1493" size={20} />
               </TouchableOpacity>
             </View>
 
@@ -468,9 +594,7 @@ export default function GameScreen() {
               <View style={styles.settingTopRow}>
                 <View>
                   <Text style={styles.settingLabel}>Hikaye Seslendirmesi</Text>
-                  <Text style={styles.settingSubLabel}>
-                    Karakter okumaları (ElevenLabs)
-                  </Text>
+                  <Text style={styles.settingSubLabel}>Karakter okumaları</Text>
                 </View>
                 <TouchableOpacity
                   onPress={async () => {
@@ -504,6 +628,45 @@ export default function GameScreen() {
                 }}
               />
             </View>
+
+            <View style={styles.settingRowContainer}>
+              <View style={styles.settingTopRow}>
+                <View>
+                  <Text style={styles.settingLabel}>Aşk Tıkırtısı</Text>
+                  <Text style={styles.settingSubLabel}>Buton tıklama sesi</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={async () => {
+                    playClickSound();
+                    const val = !isSfxEnabled;
+                    setIsSfxEnabled(val);
+                    await AsyncStorage.setItem("sfxEnabled", val.toString());
+                  }}
+                  style={[
+                    styles.toggleBtn,
+                    isSfxEnabled && styles.toggleBtnActive,
+                  ]}
+                >
+                  <Text style={styles.toggleText}>
+                    {isSfxEnabled ? "AÇIK" : "KAPALI"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Slider
+                style={styles.slider}
+                minimumValue={0}
+                maximumValue={1}
+                step={0.1}
+                value={sfxVolume}
+                disabled={!isSfxEnabled}
+                minimumTrackTintColor="#ff1493"
+                thumbTintColor={isSfxEnabled ? "#ff1493" : "#444"}
+                onValueChange={async (val) => {
+                  setSfxVolume(val);
+                  await AsyncStorage.setItem("sfxVolume", val.toString());
+                }}
+              />
+            </View>
           </View>
         </View>
       </Modal>
@@ -511,12 +674,13 @@ export default function GameScreen() {
   );
 }
 
+// STYLES (ORİJİNAL İSKELET, PEMBE UYARLAMA)
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: "#fff0f5" },
   bgImage: { flex: 1 },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,240,245,0.7)",
+    backgroundColor: "rgba(255,240,245,0.6)",
   },
   transitionContainer: { ...StyleSheet.absoluteFillObject, zIndex: 999 },
   transitionOverlayLayer: {
@@ -529,16 +693,16 @@ const styles = StyleSheet.create({
   loadingText: {
     color: "#ff1493",
     marginTop: 20,
-    letterSpacing: 3,
+    letterSpacing: 2,
     fontSize: 14,
-    fontWeight: "bold",
+    fontWeight: "900",
   },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 15,
   },
   iconCircle: {
     width: 42,
@@ -549,18 +713,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     shadowColor: "#ff1493",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,
   },
   badge: {
-    backgroundColor: "#ff1493",
+    backgroundColor: "rgba(255,20,147,0.1)",
     paddingHorizontal: 15,
     paddingVertical: 6,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,20,147,0.3)",
   },
   badgeText: {
-    color: "#fff",
+    color: "#ff1493",
     fontSize: 12,
     fontWeight: "bold",
     letterSpacing: 1,
@@ -572,12 +738,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: "hidden",
     marginVertical: 15,
+    shadowColor: "#ff1493",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
   },
   aiImage: { width: "100%", height: "100%" },
   imageBorder: {
     ...StyleSheet.absoluteFillObject,
-    borderWidth: 3,
-    borderColor: "#ff69b4",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.5)",
     borderRadius: 20,
   },
   bottomSection: {
@@ -586,28 +757,34 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 10,
   },
   storyContainer: { height: 130, paddingHorizontal: 25 },
   storyText: {
-    color: "#333",
-    fontSize: 17,
-    textAlign: "justify",
+    color: "#444",
+    fontSize: 16,
+    textAlign: "center",
     fontStyle: "italic",
-    lineHeight: 26,
+    lineHeight: 24,
     fontWeight: "500",
   },
-  optionsPanel: { paddingHorizontal: 20, paddingBottom: 20, marginTop: 10 },
+  optionsPanel: { paddingHorizontal: 20, paddingBottom: 20 },
   optionButton: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     backgroundColor: "#fff0f5",
-    padding: 16,
+    padding: 15,
     borderRadius: 15,
-    marginBottom: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#ffb6c1",
   },
+  miniGameTriggerButton: { backgroundColor: "#ff1493", borderColor: "#ff1493" },
   optionText: { color: "#d21f3c", fontSize: 15, flex: 1, fontWeight: "bold" },
   fullScreenEnd: { flex: 1, backgroundColor: "#fff0f5" },
   endOverlay: { ...StyleSheet.absoluteFillObject },
@@ -645,48 +822,108 @@ const styles = StyleSheet.create({
     height: 55,
     marginHorizontal: 8,
     borderRadius: 25,
-    backgroundColor: "#ff1493",
+    backgroundColor: "#fff0f5",
+    borderWidth: 1.5,
+    borderColor: "#ffb6c1",
     justifyContent: "center",
     alignItems: "center",
   },
   gothicButtonInner: { flexDirection: "row", alignItems: "center" },
-  gothicButtonText: { color: "#fff", fontWeight: "bold", fontSize: 14 },
-  settingsModalOverlay: {
+  gothicButtonText: { color: "#ff1493", fontWeight: "bold", fontSize: 14 },
+
+  miniGameCloseBtn: { position: "absolute", top: 15, right: 15, zIndex: 10 },
+  riddleTitle: {
+    color: "#ff1493",
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+  riddleQuestion: {
+    color: "#555",
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 20,
+    fontStyle: "italic",
+  },
+  riddleInputRow: { flexDirection: "row", width: "100%", alignItems: "center" },
+  riddleInput: {
+    flex: 1,
+    backgroundColor: "#fff0f5",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#ffb6c1",
+    marginRight: 10,
+    color: "#333",
+  },
+  riddleSubmitBtn: {
+    backgroundColor: "#ff1493",
+    padding: 12,
+    borderRadius: 10,
+  },
+  riddleErrorText: { color: "#ff4444", marginTop: 15, fontWeight: "bold" },
+
+  // Ortak Modal CSS (Kusursuz Oran)
+  modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
   },
-  settingsModalContent: {
-    width: "100%",
+  modalContent: {
+    width: width,
     backgroundColor: "#fff",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: 35,
+    borderTopRightRadius: 35,
     padding: 25,
-    paddingBottom: 40,
+    borderWidth: 1.5,
+    borderColor: "#ffb6c1",
   },
-  settingsModalHeader: {
+  modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: 20,
   },
-  settingsModalTitle: { fontSize: 24, fontWeight: "bold", color: "#ff1493" },
-  settingRowContainer: { marginBottom: 20 },
+  modalTitle: { color: "#ff1493", fontSize: 24, fontWeight: "bold" },
+  modalSubtitle: { color: "#777", fontSize: 14 },
+  modalCloseCircle: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#fff0f5",
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ffb6c1",
+  },
+
+  settingRowContainer: {
+    marginVertical: 10,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ffe4e1",
+  },
   settingTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 5,
   },
-  settingLabel: { fontSize: 18, fontWeight: "bold", color: "#333" },
-  settingSubLabel: { fontSize: 12, color: "#777" },
+  slider: { width: "100%", height: 40 },
+  settingLabel: { color: "#333", fontSize: 18, fontWeight: "bold" },
+  settingSubLabel: { color: "#777", fontSize: 12, marginTop: 4 },
   toggleBtn: {
     paddingHorizontal: 15,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#eee",
+    borderRadius: 8,
+    backgroundColor: "#fff0f5",
+    borderWidth: 1,
+    borderColor: "#ffb6c1",
+    minWidth: 80,
+    alignItems: "center",
   },
-  toggleBtnActive: { backgroundColor: "#ff1493" },
-  toggleText: { color: "#fff", fontWeight: "bold" },
-  slider: { width: "100%", height: 40 },
+  toggleBtnActive: {
+    backgroundColor: "rgba(255,20,147,0.15)",
+    borderColor: "#ff1493",
+  },
+  toggleText: { color: "#ff1493", fontWeight: "bold" },
 });
