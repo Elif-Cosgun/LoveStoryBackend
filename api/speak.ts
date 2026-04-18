@@ -9,13 +9,13 @@ export default async function handler(req, res) {
   const API_KEY = process.env.ELEVENLABS_API_KEY;
 
   const VOICES = {
-    narrator: "pPPRQGqpCjwl7QI1MoPN", // Ana Anlatıcı
-    guide: "Bj9UqZbhQsanLzgalpEG", // Dost/Yoldaş
-    enemy: "fZvBgf6KNJW6Lj0v24xJ", // Düşman/Canavar
-    woman: "Y0GXpBhnlgAEuKhjPmdn", // Gizemli Kadın
-    priest: "imykPM99IzmngsvNRvEw", // Rahip/Bilge
-    observer: "0S0t2YQAOXo65bCyAAe0", // Gözlemci
-    kid: "2eYP7x6albjyHviibFR5", // Çocuk/Genç Karakter
+    narrator: "pFZP5JQG7iQjIQuC4Bku", // Lily (Tatlı, hikaye anlatan bir kadın sesi)
+    guide: "TX3OmfQAyNjNbJj7Q6pX", // Josh (Romantik erkek başrol)
+    enemy: "ErXwobaYiN019PkySvjV", // Antoni (Soğuk/Rakip erkek)
+    woman: "EXAVITQu4vr4xnSDxMaL", // Rachel (Tatlı kadın başrol)
+    priest: "N2lVS1w4EtoT3dr4eOWO", // Callum (Olgun erkek/baba figürü)
+    observer: "MF3mGyEYCl7XYWbV9V6O", // Elli (Kız arkadaş/Dedikoducu)
+    kid: "piTKgcLEGmPE4e6mJCii", // Çocuk
   };
 
   const voiceId = VOICES[voiceType] || VOICES.narrator;

@@ -1,7 +1,7 @@
 export const fetchTTS = async (text: string, voiceType: string) => {
   try {
     const response = await fetch(
-      "https://fatal-choice-backend.vercel.app/api/speak",
+      "https://love-story-backend-8x5szjdrm-ed13.vercel.app/api/speak",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

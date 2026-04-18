@@ -1,5 +1,5 @@
 const sanitizeForUrl = (text: string): string => {
-  if (!text) return "dark+eerie+atmosphere";
+  if (!text) return "romantic+atmosphere";
   return text
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -12,14 +12,15 @@ export const fetchStoryStep = async (
   theme: string,
   choice: string | null,
   history: string[] = [],
-  inventory: string[] = [], // YENİ: Envanter eklendi
+  inventory: string[] = [],
   duration: string,
   adventureId?: string | null,
   userId?: string | null,
 ) => {
   try {
+    // VERCEL LINKIN BURADA
     const response = await fetch(
-      "https://fatal-choice-backend.vercel.app/api/generate",
+      "https://love-story-backend-8x5szjdrm-ed13.vercel.app/api/generate",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -27,7 +28,7 @@ export const fetchStoryStep = async (
           theme,
           choice,
           history,
-          inventory, // YENİ: inventory backend'e gönderiliyor
+          inventory,
           duration,
           adventureId,
           userId,
@@ -35,7 +36,11 @@ export const fetchStoryStep = async (
       },
     );
 
-    if (!response.ok) throw new Error("Sunucu hatası.");
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Vercel'den Gelen Hata:", errorText);
+      throw new Error(`Sunucu hatası: ${response.status}`);
+    }
 
     const data = await response.json();
     if (data.imagePrompt) data.imagePrompt = sanitizeForUrl(data.imagePrompt);
@@ -44,8 +49,8 @@ export const fetchStoryStep = async (
   } catch (error) {
     console.error("Bağlantı Hatası:", error);
     return {
-      text: "Karanlık bir sessizlik çöktü... Bağlantı koptu gibi görünüyor.",
-      options: ["Tekrar Odaklan"],
+      text: "Zaman aniden durdu, aranızdaki büyü bozuldu... (İnternet veya Sunucu hatası).",
+      options: ["Gözlerine Tekrar Bak (Tekrar Dene)"],
       isEnd: false,
     };
   }
