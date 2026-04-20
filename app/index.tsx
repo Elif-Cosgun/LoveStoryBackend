@@ -447,7 +447,22 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaProvider style={styles.mainWrapper}>
-      {isAdPlaying && <View style={styles.blackScreenOverlay} />}
+      {/* SİYAH PERDE: Modal çakışmasını engellemek için yüksek zIndexli View kullanıldı */}
+      {isAdPlaying && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: "#000",
+            zIndex: 999999,
+            elevation: 999999,
+          }}
+        />
+      )}
+
       <StatusBar style="light" hidden={isAdPlaying} />
 
       <ImageBackground
@@ -593,6 +608,7 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
+        {/* AŞK DEFTERİ MODALI (Düzeltildi) */}
         <Modal
           visible={isHistoryVisible}
           animationType="slide"
@@ -704,7 +720,10 @@ export default function HomeScreen() {
                           if (isAdLoaded) {
                             setIsAdPlaying(true);
                             pendingNavigationRef.current = navigateToGame;
-                            interstitial.show();
+                            // Çakışmayı önlemek için minik bir gecikme ekledik
+                            setTimeout(() => {
+                              interstitial.show();
+                            }, 300);
                           } else {
                             navigateToGame();
                           }
@@ -752,6 +771,7 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
+        {/* AYARLAR MODALI */}
         <Modal
           visible={isSettingsVisible}
           animationType="fade"
@@ -932,11 +952,6 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: "#1a0b12" },
-  blackScreenOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#000",
-    zIndex: 99999,
-  },
   bgImage: { flex: 1 },
   overlay: {
     ...StyleSheet.absoluteFillObject,

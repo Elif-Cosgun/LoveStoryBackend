@@ -82,7 +82,6 @@ export default function GameScreen() {
   );
   const hasStarted = useRef(false);
 
-  // REKLAM STATE'LERİ
   const [isAdLoaded, setIsAdLoaded] = useState(false);
   const [isAdPlaying, setIsAdPlaying] = useState(false);
   const resolveAdCloseRef = useRef<(() => void) | null>(null);
@@ -101,7 +100,6 @@ export default function GameScreen() {
         setIsAdPlaying(false);
         interstitial.load();
 
-        // Reklam kapandı, paralel çalışan veri indirmesinin kilidini aç!
         if (resolveAdCloseRef.current) {
           resolveAdCloseRef.current();
           resolveAdCloseRef.current = null;
@@ -194,7 +192,6 @@ export default function GameScreen() {
     playClickSound();
     let adPromise = Promise.resolve();
 
-    // HER 5 ADIMDA BİR REKLAM GÖSTER VE ARKA PLANDA YÜKLEMEYİ BAŞLAT
     if (
       historyRef.current.length > 0 &&
       historyRef.current.length % 5 === 0 &&
@@ -210,7 +207,6 @@ export default function GameScreen() {
     loadNextStep(opt, adPromise);
   };
 
-  // adPromise: Reklam açıksa kapanmasını bekler, değilse direkt geçer
   const loadNextStep = async (
     choice: string | null,
     adPromise: Promise<void> = Promise.resolve(),
@@ -263,8 +259,6 @@ export default function GameScreen() {
           }
         }
 
-        // BÜYÜ BURADA: Eğer reklam izleniyorsa oyun burada bekler.
-        // Eğer zaten izlendi ve bittiyse (veya hiç çıkmadıysa) zerre beklemeden alt satıra geçer!
         await adPromise;
 
         setIsLoading(false);
@@ -272,6 +266,10 @@ export default function GameScreen() {
 
         let idx = 0;
         const full = data.text || "";
+
+        // BÜYÜ BURADA: Ses açıksa sese uyumlu hız (65ms), kapalıysa okuma hızı (40ms)
+        const typingSpeed = isTtsEnabled ? 65 : 40;
+
         const interval = setInterval(() => {
           if (!isMounted.current || requestCounter.current !== myReq) {
             clearInterval(interval);
@@ -283,7 +281,7 @@ export default function GameScreen() {
             clearInterval(interval);
             setIsTyping(false);
           }
-        }, 30);
+        }, typingSpeed);
 
         if (data.parts && isTtsEnabled) {
           for (let i = 0; i < data.parts.length; i++) {
@@ -311,13 +309,23 @@ export default function GameScreen() {
 
   return (
     <View style={styles.mainWrapper}>
-      {/* SİYAH PERDE: Sızmayı %100 engeller */}
-      {isAdPlaying && <View style={styles.blackScreenOverlay} />}
+      {isAdPlaying && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: "#000",
+            zIndex: 999999,
+            elevation: 999999,
+          }}
+        />
+      )}
 
-      {/* Reklam süresince status bar gizlenir ki orasından da sızmasın */}
       <StatusBar style="light" hidden={isAdPlaying} />
 
-      {/* GEÇİŞ EKRANI: Sadece yükleniyorsa VE reklam ekranda değilse çıkar */}
       {isLoading && !isAdPlaying && (
         <View style={styles.transitionContainer}>
           <ImageBackground
@@ -514,11 +522,6 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: "#1a0b12" },
-  blackScreenOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#000",
-    zIndex: 99999, // Reklam ekranda iken sızmayı engeller
-  },
   bgImage: { flex: 1 },
   transitionContainer: { ...StyleSheet.absoluteFillObject, zIndex: 999 },
   transitionOverlayLayer: {
