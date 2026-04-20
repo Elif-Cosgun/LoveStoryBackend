@@ -218,7 +218,7 @@ export default function HomeScreen() {
     playClickSound();
     try {
       const response = await fetch(
-        `https://love-story-backend-8x5szjdrm-ed13.vercel.app/api/delete-adventure?id=${id}`,
+        `https://love-story-backend.vercel.app/api/get-adventure?userId=${userId}`,
         { method: "DELETE" },
       );
       if (response.ok)
