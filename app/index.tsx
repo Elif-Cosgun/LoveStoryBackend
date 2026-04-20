@@ -211,7 +211,7 @@ export default function HomeScreen() {
     try {
       const timestamp = new Date().getTime();
       const response = await fetch(
-        `https://love-story-backend-six.vercel.app/api/get-adventure?userId=${userId}&t=${timestamp}`,
+        `https://love-story-backend-six.vercel.app/api/get-adventures?userId=${userId}&t=${timestamp}`,
         { headers: { "Cache-Control": "no-cache", Pragma: "no-cache" } },
       );
       const data = await response.json();

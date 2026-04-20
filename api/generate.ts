@@ -15,12 +15,15 @@ export default async function handler(req: any, res: any) {
   const { theme, choice, history, inventory, duration, adventureId, userId } =
     req.body;
 
+  console.log("-> YENİ HİKAYE İSTEĞİ | ID:", adventureId, "| USER:", userId);
+
   if (!userId || userId === "null") {
     return res.status(400).json({ error: "Kullanıcı ID gerekli." });
   }
 
+  // ADIM SAYACI VE FİNAL KONTROLÜ
   const currentStep = history ? history.length + 1 : 1;
-  let targetSteps = 5; // Medium varsayılan
+  let targetSteps = 5; // Varsayılan orta
   if (duration === "short") targetSteps = 3;
   if (duration === "long") targetSteps = 8;
 
@@ -31,7 +34,7 @@ export default async function handler(req: any, res: any) {
 
   const prompt = `
     ### KİMLİK VE ÜSLUP:
-    Sen Jane Austen derinliğine ve modern romantik dram ustalığına sahip bir başyazarsın.
+    Sen Jane Austen derinliğine ve modern romantik dram ustalığına sahip, ödüllü bir aşk romanı yazarısın.
     
     ### MEVCUT DURUM:
     - Orijinal Tema: ${theme}
@@ -47,27 +50,27 @@ export default async function handler(req: any, res: any) {
     - Oyuncuya DAİMA 4 farklı karakter özelliği yansıtan seçenek sun: 
       1) Cesur/Flörtöz, 2) Utangaç/Çekingen, 3) Şüpheci/Mantıklı, 4) Esprili/Dramatik.
     - Seçenekler hikayenin yönünü gerçekten değiştirmelidir.
-    - EĞER hikaye bitiyorsa (isEnd: true), "options": ["Ana Menüye Dön"] yap.
+    - EĞER hikaye bitiyorsa (isEnd: true), "options": ["Ana Menüye Dön", "Başa Sar", "Farklı Bir Son Dene", "Yeniden Oyna"] yap.
 
     ### KURAL 3: ZENGİN VE ÇARPICI FİNALLER (isEnd ve endType)
     - Eğer "Şu Anki Aşama", hedeflenen adıma (${targetSteps}) eşit veya daha büyükse, hikayeyi ÇARPICI BİR FİNALE bağla ve KESİNLİKLE "isEnd": true yap.
-    - MUTLU SONLAR ("endType": "good"): Büyük ve tutkulu bir itiraf, yıllar sonra gelen evlilik teklifi, imkansızın aşılması, her şeyi geride bırakıp kaçma, ruh eşini bulma hissi vb.
-    - KÖTÜ/HÜZÜNLÜ SONLAR ("endType": "bad"): Büyük bir yalanın/sırrın ortaya çıkması, aldatılma, yanlış anlaşılma yüzünden ebedi ayrılık, sadece arkadaş kalma, gururun aşka galip gelmesi, toksik bağın koparılması vb.
-    - Hikaye gidişatına göre adaletli ve mantıklı bir son seç.
+    - MUTLU SONLAR ("endType": "good"): Büyük ve tutkulu bir itiraf, yıllar sonra gelen evlilik teklifi, imkansızın aşılması, her şeyi geride bırakıp kaçma, ruh eşini bulma hissi, yağmur altında kavuşma vb.
+    - KÖTÜ/HÜZÜNLÜ SONLAR ("endType": "bad"): Büyük bir yalanın/sırrın ortaya çıkması, aldatılma, yanlış anlaşılma yüzünden ebedi ayrılık, sadece arkadaş kalma, gururun aşka galip gelmesi, mantık evliliği yapıp mutsuz olma, toksik bağın koparılması vb.
+    - Hikaye gidişatına göre adaletli ve mantıklı bir son seç. Çok fazla olumlu ve olumsuz varyasyon kullan, hep aynı finalleri yazma.
 
     ### KURAL 4: SESLENDİRME VE DİYALOG AYRIMI (parts)
     - Diyalogları (" ") ve olay anlatımlarını "parts" dizisinde KESİNLİKLE AYIR.
     - SADECE şu voiceType'ları kullan: 
       * "narrator" (Olay anlatımı / Dış ses)
-      * "man_charming" (Çekici, genç, romantik erkek)
+      * "man_charming" (Çekici, genç, romantik erkek başrol)
       * "man_deep" (Ciddi, olgun, gizemli erkek)
-      * "woman_sweet" (Tatlı, duygusal kadın)
+      * "woman_sweet" (Tatlı, duygusal kadın başrol)
       * "woman_mature" (Olgun, otoriter, rakip kadın)
-      * "rival" (Soğuk, kötü niyetli, kibirli rakip erkek)
+      * "rival" (Soğuk, kötü niyetli, kibirli rakip)
     
     ### KURAL 5: GÖRSEL TUTARLILIK
     - imagePrompt İNGİLİZCE yazılmalıdır. Karakterlerin fiziksel özelliklerini hikaye boyunca koru (Örn: blonde hair, green eyes).
-    - Cinsel içerik (NSFW) KESİNLİKLE YASAKTIR.
+    - Cinsel içerik (NSFW) KESİNLİKLE YASAKTIR. Sadece duygusal yoğunluk ve romantizm kullan.
 
     ### JSON FORMATI (SADECE BUNA UY):
     {
@@ -103,12 +106,15 @@ export default async function handler(req: any, res: any) {
         quality: "standard",
       });
       finalImageUrl = imageResponse.data[0].url;
-    } catch (imgErr) {}
+    } catch (imgErr) {
+      console.error("-> GÖRSEL ÜRETİM HATASI:", imgErr);
+    }
 
     const isResume = choice && choice.includes("[RESUME]");
     let updatedHistory = history || [];
     if (!isResume && choice && choice !== "Başlangıç")
       updatedHistory = [...updatedHistory, choice];
+
     const combinedText = result.parts?.map((p: any) => p.text).join(" ") || "";
 
     const dbData = {
@@ -124,23 +130,33 @@ export default async function handler(req: any, res: any) {
         ? adventureId
         : null;
 
+    // GÜÇLENDİRİLMİŞ ÇİFT KAYIT ENGELLEYİCİ
     if (parsedId) {
-      await supabase.from("adventures").update(dbData).eq("id", parsedId);
+      const { error: updateError } = await supabase
+        .from("adventures")
+        .update(dbData)
+        .eq("id", parsedId);
+      if (updateError) console.error("-> DB GÜNCELLEME HATASI:", updateError);
     } else {
-      const { data: newData } = await supabase
+      const { data: newData, error: insertError } = await supabase
         .from("adventures")
         .insert([dbData])
         .select();
+      if (insertError) console.error("-> DB YENİ KAYIT HATASI:", insertError);
       if (newData && newData.length > 0) parsedId = newData[0].id;
     }
 
-    return res.status(200).json({
-      ...result,
-      text: combinedText,
-      imageUrl: finalImageUrl,
-      adventureId: parsedId,
-    });
+    console.log("-> BAŞARILI CEVAP DÖNDÜ, ID:", parsedId);
+    return res
+      .status(200)
+      .json({
+        ...result,
+        text: combinedText,
+        imageUrl: finalImageUrl,
+        adventureId: parsedId,
+      });
   } catch (error: any) {
+    console.error("-> GENEL SUNUCU HATASI:", error);
     return res.status(500).json({ error: error.message });
   }
 }
