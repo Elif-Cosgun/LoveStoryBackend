@@ -24,46 +24,54 @@ export default async function handler(req: any, res: any) {
   const fullContext =
     history && history.length > 0
       ? history.join("\n--- SONRAKİ ADIM ---\n")
-      : "Romantik hikayenin başlangıcı.";
+      : "Hikayenin başlangıcı.";
 
   const prompt = `
     ### SENİN KİMLİĞİN VE ÜSLUBUN:
-    Sen Jane Austen tarzında usta bir aşk romanı yazarısın. Oyuncuyu duygusal ve romantik bir atmosfere hapsetmelisin.
+    Sen Jane Austen ve modern romantik dram tarzında usta bir aşk romanı yazarısın. 
 
     ### BAĞLAM:
-    - ANA TEMA: ${theme}
+    - OYUNCUNUN GİRDİĞİ TEMA: ${theme}
     - ŞİMDİYE KADAR YAŞANANLAR: ${fullContext}
     - SON SEÇİM: ${choice || "Başlangıç"}
     - TEMPO: ${duration}
 
-    ### KURAL 1: PARÇALI SESLENDİRME (DİYALOG):
-    - Karakter konuşmaları tırnak (" ") içinde, anlatım tırnak dışında olmalı.
-    - Anlatıcı için: "narrator", Kadın karakter için: "woman", Erkek karakter için: "guide", Kötü karakter için "enemy".
-    - ŞİMDİLİK ANLIK SES EFEKTİ KULLANILMAYACAK ("sfx" alanı hep boş/null kalacak).
-    
-    ### KURAL 2: SEÇENEKLER VE FİNAL:
-    - DAİMA tam olarak 4 farklı romantik/duygusal seçenek sun.
-    - Hikaye sonlandığında "isEnd": true olmalı. Mutlu son "good", kötü son "bad" olmalı.
+    ### KURAL 1: İÇERİK GELİŞTİRME VE SINIRLAR (ÇOK ÖNEMLİ):
+    - Eğer "OYUNCUNUN GİRDİĞİ TEMA" çok kısa veya sığ ise (örn: 'kafe', 'okul', 'eski sevgili'), bunu derhal 3-4 cümlelik, edebi, detaylı ve duygu yüklü bir hikaye evrenine dönüştür.
+    - SINIRLAR: Bu bir romantik/dram kurgusudur. Cinsel içerik (NSFW), aşırı şiddet veya 18+ uygunsuz detaylar KESİNLİKLE YASAKTIR. Duygusal çekim, el tutuşma, sarılma, öpüşme, kalp kırıklığı veya dram seviyesinde kal.
 
-    ### KURAL 3: JSON FORMATI:
-    - Cevabın SADECE bu JSON formatında olmalı:
+    ### KURAL 2: GÖRSEL VE HİKAYE TUTARLILIĞI:
+    - Oyuncuyu asla aynı döngüde tutma. Her yeni adım hikayeyi, mekanı veya duyguyu bir sonrakine taşımalıdır.
+    - 'imagePrompt' oluştururken partnerin (aşk ilgisinin) fiziksel özelliklerini (saç rengi, göz, stil) ilk sahnede nasıl belirlediysen sonraki tüm sahnelerde AYNI tut.
+    
+    ### KURAL 3: PARÇALI SESLENDİRME (DİYALOG):
+    - Karakter konuşmaları tırnak (" ") içinde, senin anlatımın tırnak dışında olmalı.
+    - Anlatıcı (İç ses/Betimleme) için: "narrator_soft" veya "narrator_dramatic"
+    - Kadın karakterler için: "woman_sweet" veya "woman_mature"
+    - Erkek karakterler için: "man_charming" veya "man_deep"
+    - İstenmeyen kişi/Rakip için: "rival"
+    
+    ### KURAL 4: SEÇENEKLER VE FİNAL:
+    - DAİMA tam olarak 4 farklı seçenek sun (seçenekler hikayeyi farklı duygusal yönlere çekmeli: cesur, utangaç, şüpheci, romantik).
+    - Hikaye sonlandığında "isEnd": true olmalı. 
+    - Mutlu sonlar (Evlilik, itiraf, büyük aşk) için "endType": "good"
+    - Kötü/Buruk sonlar (Ayrılık, reddedilme, arkadaş kalma) için "endType": "bad"
+
+    ### KURAL 5: JSON FORMATI KESİN ZORUNLULUK:
     {
       "parts": [
-        { "text": "Metin...", "voiceType": "narrator", "sfx": null }
+        { "text": "Metin...", "voiceType": "narrator_soft" }
       ],
-      "ambient": "romantic",
       "options": ["seçenek 1", "seçenek 2", "seçenek 3", "seçenek 4"],
-      "inventory": [],
-      "isPanic": false,
-      "imagePrompt": "A romantic digital painting of...",
+      "imagePrompt": "A highly detailed, romantic cinematic digital painting of...",
       "isEnd": false,
-      "endType": "good"
+      "endType": "none"
     }
   `;
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // GPT-4o yerine mini deniyoruz, bakiye dostudur.
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       temperature: 0.85,
@@ -121,8 +129,6 @@ export default async function handler(req: any, res: any) {
         adventureId: finalAdventureId,
       });
   } catch (error: any) {
-    console.error("Vercel Hatası:", error);
-    // Eğer OpenAI 401 verirse bunu spesifik olarak bildiriyoruz
     if (error.status === 401) {
       return res
         .status(401)

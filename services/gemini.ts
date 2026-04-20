@@ -1,3 +1,5 @@
+import { Image } from "react-native";
+
 const sanitizeForUrl = (text: string): string => {
   if (!text) return "romantic+atmosphere";
   return text
@@ -18,7 +20,6 @@ export const fetchStoryStep = async (
   userId?: string | null,
 ) => {
   try {
-    // VERCEL LINKIN BURADA
     const response = await fetch(
       "https://love-story-backend-six.vercel.app/api/generate",
       {
@@ -36,21 +37,20 @@ export const fetchStoryStep = async (
       },
     );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Vercel'den Gelen Hata:", errorText);
-      throw new Error(`Sunucu hatası: ${response.status}`);
+    if (!response.ok) throw new Error(`Sunucu hatası: ${response.status}`);
+    const data = await response.json();
+
+    // GÖRSEL TAMAMEN İNMEDEN ARAYÜZE GEÇMEMESİ İÇİN ÖNBELLEĞE ALIYORUZ
+    if (data.imageUrl && !data.imageUrl.includes("placeholder")) {
+      await Image.prefetch(data.imageUrl);
     }
 
-    const data = await response.json();
     if (data.imagePrompt) data.imagePrompt = sanitizeForUrl(data.imagePrompt);
-
     return data;
   } catch (error) {
-    console.error("Bağlantı Hatası:", error);
     return {
-      text: "Zaman aniden durdu, aranızdaki büyü bozuldu... (İnternet veya Sunucu hatası).",
-      options: ["Gözlerine Tekrar Bak (Tekrar Dene)"],
+      text: "Bağlantı koptu... Kalp ritmin yavaşlıyor. (İnternet hatası).",
+      options: ["Tekrar Dene"],
       isEnd: false,
     };
   }

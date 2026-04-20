@@ -4,31 +4,28 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method Not Allowed" });
 
   const { text, voiceType } = req.body;
-  // METNİ TEMİZLE: Yeni satırları ve gereksiz boşlukları ElevenLabs'e gitmeden siler
   const cleanText = text.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
   const API_KEY = process.env.ELEVENLABS_API_KEY;
 
+  // Yeni Genişletilmiş Ses Kadrosu
   const VOICES = {
-    narrator: "pFZP5JQG7iQjIQuC4Bku", // Lily (Tatlı, hikaye anlatan bir kadın sesi)
-    guide: "TX3OmfQAyNjNbJj7Q6pX", // Josh (Romantik erkek başrol)
-    enemy: "ErXwobaYiN019PkySvjV", // Antoni (Soğuk/Rakip erkek)
-    woman: "EXAVITQu4vr4xnSDxMaL", // Rachel (Tatlı kadın başrol)
-    priest: "N2lVS1w4EtoT3dr4eOWO", // Callum (Olgun erkek/baba figürü)
-    observer: "MF3mGyEYCl7XYWbV9V6O", // Elli (Kız arkadaş/Dedikoducu)
-    kid: "piTKgcLEGmPE4e6mJCii", // Çocuk
+    narrator_soft: "pFZP5JQG7iQjIQuC4Bku", // Lily (Hafif, tatlı anlatıcı)
+    narrator_dramatic: "oWAxZDx7w5VEj9dCyTzz", // Grace (Derin anlatıcı)
+    woman_sweet: "EXAVITQu4vr4xnSDxMaL", // Rachel (Tatlı kadın)
+    woman_mature: "MF3mGyEYCl7XYWbV9V6O", // Elli (Olgun kadın)
+    man_charming: "TX3OmfQAyNjNbJj7Q6pX", // Josh (Çekici erkek)
+    man_deep: "N2lVS1w4EtoT3dr4eOWO", // Callum (Kalın sesli erkek)
+    rival: "ErXwobaYiN019PkySvjV", // Antoni (Soğuk/Rakip)
   };
 
-  const voiceId = VOICES[voiceType] || VOICES.narrator;
+  const voiceId = VOICES[voiceType] || VOICES.narrator_soft;
 
   try {
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "xi-api-key": API_KEY,
-        },
+        headers: { "Content-Type": "application/json", "xi-api-key": API_KEY },
         body: JSON.stringify({
           text: cleanText,
           model_id: "eleven_multilingual_v2",
@@ -38,14 +35,9 @@ export default async function handler(req, res) {
     );
 
     if (!response.ok) throw new Error("ElevenLabs API hatası.");
-
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-
-    // SESİ BASE64'E ÇEVİRİP JSON OLARAK GÖNDERİYORUZ
-    const base64Audio = buffer.toString("base64");
-
-    return res.status(200).json({ audioContent: base64Audio });
+    return res.status(200).json({ audioContent: buffer.toString("base64") });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

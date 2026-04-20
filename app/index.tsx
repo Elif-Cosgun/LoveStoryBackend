@@ -14,7 +14,7 @@ import {
   Trash2,
   X,
 } from "lucide-react-native";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -38,21 +38,33 @@ SplashScreen.preventAutoHideAsync();
 const exampleThemes = [
   {
     id: 1,
-    title: "Yağmurlu Kafe",
+    title: "Kraliyet Balosu",
     prompt:
-      "Paris'te yağmurlu bir günde kafede çarpışarak dökülen kahveler ve başlayan tutkulu aşk.",
+      "18. yüzyılda görkemli bir saray balosunda, kimliğini gizleyen gizemli bir prensle edilen tutkulu bir dans.",
   },
   {
     id: 2,
-    title: "Lise Aşkı",
+    title: "Yaz Yağmuru",
     prompt:
-      "Yıllar sonra lise mezuniyet buluşmasında ilk aşkınla göz göze gelme anı.",
+      "Şiddetli bir yaz yağmurunda sığındığın eski bir sahafta, aynı kitaba uzandığın yabancıyla başlayan derin bağ.",
   },
   {
     id: 3,
-    title: "Düşmanlıktan Aşka",
+    title: "Zorunlu Sözleşme",
     prompt:
-      "İş yerinde rekabet ettiğin çekici iş arkadaşınla asansörde mahsur kalmak.",
+      "Aileni iflastan kurtarmak için ülkenin en soğuk ve acımasız CEO'su ile yapılan sahte bir evlilik anlaşması.",
+  },
+  {
+    id: 4,
+    title: "Yıldızların Altında",
+    prompt:
+      "Issız bir orman kampında, yıllardır en yakın arkadaşın olan kişiyle ateş başında yalnız kaldığın o itiraf gecesi.",
+  },
+  {
+    id: 5,
+    title: "Trende Karşılaşma",
+    prompt:
+      "Doğu Ekspresinin lüks bir kompartımanında, gözlerini senden ayırmayan tehlikeli derecede çekici bir yolcu.",
   },
 ];
 
@@ -77,7 +89,7 @@ export default function HomeScreen() {
   const [isSfxEnabled, setIsSfxEnabled] = useState(true);
   const [sfxVolume, setSfxVolume] = useState(1.0);
 
-  const bgmSound = useRef<Audio.Sound | null>(null);
+  const bgmSound = React.useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -87,7 +99,6 @@ export default function HomeScreen() {
           staysActiveInBackground: false,
           shouldDuckAndroid: true,
         });
-
         let storedId = await SecureStore.getItemAsync("user_unique_id");
         if (!storedId) {
           storedId = `user_${Math.random().toString(36).substring(2, 9)}`;
@@ -143,9 +154,7 @@ export default function HomeScreen() {
             await bgmSound.current.playAsync();
             await bgmSound.current.setVolumeAsync(musicVolume);
           }
-        } catch (e) {
-          console.log("Müzik bulunamadı.");
-        }
+        } catch (e) {}
       };
       startMusic();
       return () => {
@@ -175,11 +184,9 @@ export default function HomeScreen() {
       setIsAlertVisible(true);
       return;
     }
-
     if (bgmSound.current) {
       await bgmSound.current.stopAsync();
     }
-
     router.push({
       pathname: "/game",
       params: {
@@ -221,12 +228,9 @@ export default function HomeScreen() {
         `https://love-story-backend-six.vercel.app/api/delete-adventure?id=${id}`,
         { method: "DELETE" },
       );
-      if (response.ok) {
+      if (response.ok)
         setAdventures((prev) => prev.filter((adv) => adv.id !== id));
-      }
-    } catch (e) {
-      console.log(e);
-    }
+    } catch (e) {}
   };
 
   const filteredAdventures = adventures.filter((adv) =>
@@ -234,18 +238,17 @@ export default function HomeScreen() {
   );
 
   return (
-    <SafeAreaProvider style={styles.mainWrapper}>
+    <SafeAreaProvider style={{ flex: 1, backgroundColor: "#fff0f5" }}>
       <ImageBackground
         source={{
           uri: "https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=1080&auto=format&fit=crop",
         }}
-        style={styles.bgImage}
+        style={styles.container}
         resizeMode="cover"
       >
         <StatusBar style="light" />
         <View style={styles.overlay} />
         <SafeAreaView style={styles.safeArea}>
-          {/* ÜST BAR */}
           <View style={styles.topIconBar}>
             <TouchableOpacity
               onPress={() => {
@@ -360,9 +363,9 @@ export default function HomeScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
 
-        {/* UYARI MODALI */}
+        {/* MODALLAR */}
         <Modal visible={isAlertVisible} animationType="fade" transparent={true}>
-          <View style={styles.customAlertOverlay}>
+          <View style={styles.modalOverlayCen}>
             <View style={styles.customAlertBox}>
               <Heart color="#ff1493" size={32} style={{ marginBottom: 10 }} />
               <Text style={styles.alertTitle}>AŞK İLHAM İSTER</Text>
@@ -382,7 +385,6 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
-        {/* GEÇMİŞ MODALI (ORİJİNAL YAPI) */}
         <Modal
           visible={isHistoryVisible}
           animationType="slide"
@@ -519,7 +521,6 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
-        {/* AYARLAR MODALI (ORİJİNAL YAPI) */}
         <Modal
           visible={isSettingsVisible}
           animationType="fade"
@@ -681,7 +682,6 @@ export default function HomeScreen() {
   );
 }
 
-// STYLES (ORİJİNAL FATAL CHOICE İSKELETİ, PEMBE RENKLER)
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: "#fff0f5" },
   bgImage: { flex: 1 },
@@ -820,8 +820,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
-  // Modals (Orijinal YAPI!)
-  customAlertOverlay: {
+  modalOverlayCen: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "center",

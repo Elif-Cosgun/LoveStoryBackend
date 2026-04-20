@@ -5,11 +5,11 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
   Heart,
+  HeartCrack,
   Home,
   RefreshCw,
   Settings,
-  Sparkles,
-  X,
+  X
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -21,9 +21,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchTTS } from "../services/elevenlabs";
@@ -69,13 +68,9 @@ export default function GameScreen() {
     params.sfxVolume ? parseFloat(params.sfxVolume as string) : 1.0,
   );
 
-  const [activeMiniGame, setActiveMiniGame] = useState<any>(null);
-  const [isMiniGameModalVisible, setIsMiniGameModalVisible] = useState(false);
-  const [riddleInput, setRiddleInput] = useState("");
-  const [riddleError, setRiddleError] = useState<string | null>(null);
-
   const bgmSound = useRef<Audio.Sound | null>(null);
   const ttsSound = useRef<Audio.Sound | null>(null);
+
   const scrollViewRef = useRef<ScrollView>(null);
   const requestCounter = useRef(0);
   const isMounted = useRef(true);
@@ -94,7 +89,7 @@ export default function GameScreen() {
         );
         if (isMounted.current) bgmSound.current = sound;
       } catch (e) {
-        console.log("Arka plan müziği yüklenemedi.");
+        console.log("Müzik yüklenemedi.");
       }
     };
     startMusic();
@@ -116,6 +111,7 @@ export default function GameScreen() {
     };
   }, []);
 
+  // ANINDA MÜZİK GÜNCELLEME
   useEffect(() => {
     if (bgmSound.current) {
       if (isMusicEnabled) {
@@ -124,6 +120,16 @@ export default function GameScreen() {
       } else bgmSound.current.pauseAsync();
     }
   }, [isMusicEnabled, musicVolume]);
+
+  // ANINDA SESLENDİRME (TTS) GÜNCELLEME
+  useEffect(() => {
+    if (ttsSound.current) {
+      if (isTtsEnabled) {
+        ttsSound.current.playAsync();
+        ttsSound.current.setVolumeAsync(ttsVolume);
+      } else ttsSound.current.pauseAsync();
+    }
+  }, [isTtsEnabled, ttsVolume]);
 
   const playClickSound = async () => {
     if (!isSfxEnabled) return;
@@ -164,8 +170,6 @@ export default function GameScreen() {
       const myReq = requestCounter.current;
       setIsLoading(true);
       setDisplayedText("");
-      setActiveMiniGame(null);
-      setIsMiniGameModalVisible(false);
 
       if (ttsSound.current) {
         await ttsSound.current.unloadAsync();
@@ -197,24 +201,23 @@ export default function GameScreen() {
         if (data) {
           if (data.adventureId) setAdventureId(data.adventureId);
           setInventory(data.inventory || []);
-          if (data.miniGame) setActiveMiniGame(data.miniGame);
-
           setCurrentPart(data);
-          setIsLoading(false);
 
           if (choice && choice !== "[RESUME]")
             setHistory((prev) => [...prev, choice]);
 
           let audioUris: any[] = [];
-          if (isTtsEnabled && data.parts) {
+          if (data.parts) {
             audioUris = await Promise.all(
               data.parts.map((p: any) =>
-                fetchTTS(p.text, p.voiceType || "narrator"),
+                fetchTTS(p.text, p.voiceType || "narrator_soft"),
               ),
             );
           }
 
+          setIsLoading(false); // Ses ve resimler indikten sonra ekrana geç!
           setIsTyping(true);
+
           let idx = 0;
           const full = data.text || "";
           const interval = setInterval(() => {
@@ -261,25 +264,6 @@ export default function GameScreen() {
     loadNextStep(opt, history, adventureId);
   };
 
-  const handleRiddleSubmit = () => {
-    playClickSound();
-    if (!riddleInput.trim() || !activeMiniGame) return;
-    if (
-      riddleInput.toLowerCase().trim() ===
-      activeMiniGame.answer.toLowerCase().trim()
-    ) {
-      setActiveMiniGame(null);
-      setIsMiniGameModalVisible(false);
-      loadNextStep(
-        "[SİSTEM: Oyuncu engeli tatlı bir şekilde aştı, hikayeyi romantik ilerlet.]",
-        history,
-        adventureId,
-      );
-    } else {
-      setRiddleError("Bu cevap kalbini çalmaya yetmedi... Tekrar düşün.");
-    }
-  };
-
   return (
     <View style={styles.mainWrapper}>
       <StatusBar style="light" />
@@ -304,6 +288,7 @@ export default function GameScreen() {
             style={{ flex: 1 }}
             resizeMode="cover"
           >
+            {/* İYİ SON VE KÖTÜ SON İÇİN İKİ FARKLI TASARIM */}
             <View
               style={[
                 styles.endOverlay,
@@ -311,17 +296,46 @@ export default function GameScreen() {
                   backgroundColor:
                     currentPart?.endType === "good"
                       ? "rgba(255,20,147,0.3)"
-                      : "rgba(0,0,0,0.7)",
+                      : "rgba(0,0,0,0.8)",
                 },
               ]}
             />
             <SafeAreaView style={styles.endSafeArea}>
               <View style={{ alignItems: "center", paddingTop: 20 }}>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>FİNAL</Text>
+                <View
+                  style={[
+                    styles.badge,
+                    currentPart?.endType === "bad" && {
+                      backgroundColor: "#440000",
+                      borderColor: "#ff0000",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.badgeText,
+                      currentPart?.endType === "bad" && { color: "#ff4444" },
+                    ]}
+                  >
+                    FİNAL
+                  </Text>
                 </View>
               </View>
               <View style={styles.endContentBottom}>
+                {currentPart?.endType === "good" ? (
+                  <Heart
+                    color="#ff1493"
+                    size={48}
+                    style={{ alignSelf: "center", marginBottom: 10 }}
+                    fill="#ff1493"
+                  />
+                ) : (
+                  <HeartCrack
+                    color="#ff4444"
+                    size={48}
+                    style={{ alignSelf: "center", marginBottom: 10 }}
+                  />
+                )}
                 <Text
                   style={[
                     styles.endTitle,
@@ -335,31 +349,70 @@ export default function GameScreen() {
                     : "KALP KIRIKLIĞI"}
                 </Text>
                 <Text style={styles.endDescriptionText}>{displayedText}</Text>
+
                 <View style={styles.endButtonRow}>
                   <TouchableOpacity
-                    style={styles.gothicButton}
+                    style={[
+                      styles.gothicButton,
+                      currentPart?.endType === "bad" && {
+                        backgroundColor: "rgba(0,0,0,0.8)",
+                        borderColor: "#ff4444",
+                      },
+                    ]}
                     onPress={goHome}
                   >
                     <View style={styles.gothicButtonInner}>
                       <Home
-                        color="#ff1493"
+                        color={
+                          currentPart?.endType === "good"
+                            ? "#ff1493"
+                            : "#ff4444"
+                        }
                         size={16}
                         style={{ marginRight: 8 }}
                       />
-                      <Text style={styles.gothicButtonText}>ANA SAYFA</Text>
+                      <Text
+                        style={[
+                          styles.gothicButtonText,
+                          currentPart?.endType === "bad" && {
+                            color: "#ff4444",
+                          },
+                        ]}
+                      >
+                        ANA SAYFA
+                      </Text>
                     </View>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.gothicButton}
+                    style={[
+                      styles.gothicButton,
+                      currentPart?.endType === "bad" && {
+                        backgroundColor: "rgba(0,0,0,0.8)",
+                        borderColor: "#ff4444",
+                      },
+                    ]}
                     onPress={restartGame}
                   >
                     <View style={styles.gothicButtonInner}>
                       <RefreshCw
-                        color="#ff1493"
+                        color={
+                          currentPart?.endType === "good"
+                            ? "#ff1493"
+                            : "#ff4444"
+                        }
                         size={16}
                         style={{ marginRight: 8 }}
                       />
-                      <Text style={styles.gothicButtonText}>YENİDEN DENE</Text>
+                      <Text
+                        style={[
+                          styles.gothicButtonText,
+                          currentPart?.endType === "bad" && {
+                            color: "#ff4444",
+                          },
+                        ]}
+                      >
+                        YENİDEN DENE
+                      </Text>
                     </View>
                   </TouchableOpacity>
                 </View>
@@ -427,105 +480,29 @@ export default function GameScreen() {
               </View>
 
               <View style={styles.optionsPanel}>
-                {currentPart?.options?.map((opt: string, index: number) => {
-                  const isMiniGameTrigger = activeMiniGame && index === 0;
-                  return (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.optionButton,
-                        (isTyping || isLoading) && { opacity: 0.6 },
-                        isMiniGameTrigger && styles.miniGameTriggerButton,
-                      ]}
-                      onPress={() => {
-                        if (isMiniGameTrigger) {
-                          playClickSound();
-                          setIsMiniGameModalVisible(true);
-                        } else handleOptionSelect(opt);
-                      }}
-                      disabled={isLoading || isTyping}
-                    >
-                      <Text
-                        style={[
-                          styles.optionText,
-                          isMiniGameTrigger && { color: "#fff" },
-                        ]}
-                      >
-                        {isLoading ? "..." : opt}
-                      </Text>
-                      {isMiniGameTrigger ? (
-                        <Sparkles color="#fff" size={16} />
-                      ) : (
-                        <Heart
-                          color={isTyping ? "#aaa" : "#ff1493"}
-                          size={16}
-                        />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
+                {currentPart?.options?.map((opt: string, index: number) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.optionButton,
+                      (isTyping || isLoading) && { opacity: 0.6 },
+                    ]}
+                    onPress={() => handleOptionSelect(opt)}
+                    disabled={isLoading || isTyping}
+                  >
+                    <Text style={styles.optionText}>
+                      {isLoading ? "..." : opt}
+                    </Text>
+                    <Heart color={isTyping ? "#aaa" : "#ff1493"} size={16} />
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
           </SafeAreaView>
         </ImageBackground>
       )}
 
-      {/* MİNİ OYUN MODALI */}
-      <Modal
-        visible={isMiniGameModalVisible}
-        animationType="fade"
-        transparent={true}
-      >
-        <View style={styles.modalOverlay}>
-          <View
-            style={[styles.modalContent, { height: "auto", paddingBottom: 40 }]}
-          >
-            <TouchableOpacity
-              style={styles.miniGameCloseBtn}
-              onPress={() => {
-                playClickSound();
-                setIsMiniGameModalVisible(false);
-              }}
-            >
-              <X color="#ff1493" size={20} />
-            </TouchableOpacity>
-
-            <View style={{ width: "100%", alignItems: "center" }}>
-              <Heart color="#ff1493" size={32} style={{ marginBottom: 10 }} />
-              <Text style={styles.modalTitle}>AŞK FISILTISI</Text>
-              <Text
-                style={[
-                  styles.modalSubtitle,
-                  { marginBottom: 20, textAlign: "center" },
-                ]}
-              >
-                {activeMiniGame?.question ||
-                  "Onun kalbini çalacak doğru kelimeyi bul."}
-              </Text>
-              <View style={styles.riddleInputRow}>
-                <TextInput
-                  style={styles.riddleInput}
-                  placeholder="Cevabın..."
-                  placeholderTextColor="#ffb6c1"
-                  value={riddleInput}
-                  onChangeText={setRiddleInput}
-                />
-                <TouchableOpacity
-                  style={styles.riddleSubmitBtn}
-                  onPress={handleRiddleSubmit}
-                >
-                  <Heart color="#fff" size={20} />
-                </TouchableOpacity>
-              </View>
-              {riddleError && (
-                <Text style={styles.riddleErrorText}>{riddleError}</Text>
-              )}
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* AYARLAR MODALI (ORİJİNAL YAPI) */}
+      {/* AYARLAR MODALI */}
       <Modal
         visible={isSettingsVisible}
         animationType="fade"
@@ -674,7 +651,6 @@ export default function GameScreen() {
   );
 }
 
-// STYLES (ORİJİNAL İSKELET, PEMBE UYARLAMA)
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: "#fff0f5" },
   bgImage: { flex: 1 },
@@ -705,10 +681,10 @@ const styles = StyleSheet.create({
     paddingTop: 15,
   },
   iconCircle: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#fff",
-    borderRadius: 21,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#ff1493",
@@ -784,7 +760,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ffb6c1",
   },
-  miniGameTriggerButton: { backgroundColor: "#ff1493", borderColor: "#ff1493" },
   optionText: { color: "#d21f3c", fontSize: 15, flex: 1, fontWeight: "bold" },
   fullScreenEnd: { flex: 1, backgroundColor: "#fff0f5" },
   endOverlay: { ...StyleSheet.absoluteFillObject },
@@ -831,39 +806,6 @@ const styles = StyleSheet.create({
   gothicButtonInner: { flexDirection: "row", alignItems: "center" },
   gothicButtonText: { color: "#ff1493", fontWeight: "bold", fontSize: 14 },
 
-  miniGameCloseBtn: { position: "absolute", top: 15, right: 15, zIndex: 10 },
-  riddleTitle: {
-    color: "#ff1493",
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  riddleQuestion: {
-    color: "#555",
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: 20,
-    fontStyle: "italic",
-  },
-  riddleInputRow: { flexDirection: "row", width: "100%", alignItems: "center" },
-  riddleInput: {
-    flex: 1,
-    backgroundColor: "#fff0f5",
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#ffb6c1",
-    marginRight: 10,
-    color: "#333",
-  },
-  riddleSubmitBtn: {
-    backgroundColor: "#ff1493",
-    padding: 12,
-    borderRadius: 10,
-  },
-  riddleErrorText: { color: "#ff4444", marginTop: 15, fontWeight: "bold" },
-
-  // Ortak Modal CSS (Kusursuz Oran)
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
