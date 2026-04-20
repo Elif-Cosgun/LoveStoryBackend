@@ -19,41 +19,64 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: "Kullanıcı ID gerekli." });
   }
 
+  const currentStep = history ? history.length + 1 : 1;
+  let targetSteps = 5; // Medium varsayılan
+  if (duration === "short") targetSteps = 3;
+  if (duration === "long") targetSteps = 8;
+
   const fullContext =
     history && history.length > 0
       ? history.join("\n--- SONRAKİ ADIM ---\n")
       : "Hikayenin başlangıcı.";
 
-  // DİKKAT: SES KADROSU VE DİYALOG KURALLARI ZENGİNLEŞTİRİLDİ
   const prompt = `
-    Sen Jane Austen ve modern romantik dram tarzında usta bir aşk romanı yazarısın. 
-    TEMA: ${theme}
-    GEÇMİŞ: ${fullContext}
-    SEÇİM: ${choice || "Başlangıç"}
-    TEMPO: ${duration}
+    ### KİMLİK VE ÜSLUP:
+    Sen Jane Austen derinliğine ve modern romantik dram ustalığına sahip bir başyazarsın.
     
-    KURAL 1: 4 seçenek sun. Cinsel içerik kesinlikle yasaktır, romantizmde kal. Karakterlerin fiziksel özelliklerini hikaye boyunca koru. 
+    ### MEVCUT DURUM:
+    - Orijinal Tema: ${theme}
+    - Şu Anki Aşama: ${currentStep}. Adım (Hedeflenen final adımı: ${targetSteps})
+    - Geçmişte Yaşananlar: ${fullContext}
+    - Oyuncunun Son Seçimi: ${choice || "Hikayeye başla"}
+
+    ### KURAL 1: MANTIKLI İLERLEME VE TEKRAR YASAĞI (ÇOK ÖNEMLİ)
+    - Hikaye ASLA yerinde saymamalı. Karakterler sürekli aynı duyguyu yaşamasın, aynı mekanda takılıp kalmasın. 
+    - Oyuncunun seçimine göre her adımda zaman ilerlemeli, mekan değişmeli, bir sır ortaya çıkmalı veya yeni bir duygusal eşik aşılmalıdır.
+
+    ### KURAL 2: SEÇENEKLER (4 FARKLI YAKLAŞIM)
+    - Oyuncuya DAİMA 4 farklı karakter özelliği yansıtan seçenek sun: 
+      1) Cesur/Flörtöz, 2) Utangaç/Çekingen, 3) Şüpheci/Mantıklı, 4) Esprili/Dramatik.
+    - Seçenekler hikayenin yönünü gerçekten değiştirmelidir.
+    - EĞER hikaye bitiyorsa (isEnd: true), "options": ["Ana Menüye Dön"] yap.
+
+    ### KURAL 3: ZENGİN VE ÇARPICI FİNALLER (isEnd ve endType)
+    - Eğer "Şu Anki Aşama", hedeflenen adıma (${targetSteps}) eşit veya daha büyükse, hikayeyi ÇARPICI BİR FİNALE bağla ve KESİNLİKLE "isEnd": true yap.
+    - MUTLU SONLAR ("endType": "good"): Büyük ve tutkulu bir itiraf, yıllar sonra gelen evlilik teklifi, imkansızın aşılması, her şeyi geride bırakıp kaçma, ruh eşini bulma hissi vb.
+    - KÖTÜ/HÜZÜNLÜ SONLAR ("endType": "bad"): Büyük bir yalanın/sırrın ortaya çıkması, aldatılma, yanlış anlaşılma yüzünden ebedi ayrılık, sadece arkadaş kalma, gururun aşka galip gelmesi, toksik bağın koparılması vb.
+    - Hikaye gidişatına göre adaletli ve mantıklı bir son seç.
+
+    ### KURAL 4: SESLENDİRME VE DİYALOG AYRIMI (parts)
+    - Diyalogları (" ") ve olay anlatımlarını "parts" dizisinde KESİNLİKLE AYIR.
+    - SADECE şu voiceType'ları kullan: 
+      * "narrator" (Olay anlatımı / Dış ses)
+      * "man_charming" (Çekici, genç, romantik erkek)
+      * "man_deep" (Ciddi, olgun, gizemli erkek)
+      * "woman_sweet" (Tatlı, duygusal kadın)
+      * "woman_mature" (Olgun, otoriter, rakip kadın)
+      * "rival" (Soğuk, kötü niyetli, kibirli rakip erkek)
     
-    KURAL 2 (SESLENDİRME VE DİYALOG AYRIMI - ÇOK ÖNEMLİ):
-    - Metni "parts" (kısımlar) dizisine bölerken, anlatıcının kısımlarını ve her bir karakterin diyaloglarını KESİNLİKLE AYIR.
-    - Karakterin yaşına, cinsiyetine ve rolüne göre şu "voiceType" etiketlerinden en uygun olanını seç:
-      * "narrator" -> Sadece olay anlatımı ve dış ses için.
-      * "man_charming" -> Genç, çekici, romantik erkek başrol için.
-      * "man_deep" -> Olgun, ciddi, bilge veya baba figürü erkekler için.
-      * "woman_sweet" -> Genç, tatlı, duygusal kadın başrol için.
-      * "woman_mature" -> Olgun, zarif, otoriter kadınlar veya dedikoducu arkadaşlar için.
-      * "rival" -> Soğuk, kibirli, rakip veya kötü niyetli kişiler için.
-      * "kid" -> Çocuk karakterler için.
-    
-    ÖRNEK JSON YAPISI:
+    ### KURAL 5: GÖRSEL TUTARLILIK
+    - imagePrompt İNGİLİZCE yazılmalıdır. Karakterlerin fiziksel özelliklerini hikaye boyunca koru (Örn: blonde hair, green eyes).
+    - Cinsel içerik (NSFW) KESİNLİKLE YASAKTIR.
+
+    ### JSON FORMATI (SADECE BUNA UY):
     {
       "parts": [ 
-        { "text": "Balodaki kalabalık aniden sessizleşti.", "voiceType": "narrator" },
-        { "text": "Bu dansı bana lütfeder misiniz?", "voiceType": "man_charming" },
-        { "text": "Ona asla güvenme tatlım.", "voiceType": "woman_mature" }
+        { "text": "Ona doğru bir adım attı ve gözlerinin içine baktı.", "voiceType": "narrator" },
+        { "text": "Senden vazgeçmeyeceğim.", "voiceType": "man_charming" }
       ],
       "options": ["seçenek 1", "seçenek 2", "seçenek 3", "seçenek 4"],
-      "imagePrompt": "A highly detailed, romantic cinematic digital painting of...",
+      "imagePrompt": "A highly detailed, cinematic digital painting of...",
       "isEnd": false,
       "endType": "none"
     }
@@ -88,7 +111,7 @@ export default async function handler(req: any, res: any) {
       updatedHistory = [...updatedHistory, choice];
     const combinedText = result.parts?.map((p: any) => p.text).join(" ") || "";
 
-    const upsertData = {
+    const dbData = {
       theme: theme,
       history: updatedHistory,
       is_completed: result.isEnd === true,
@@ -96,33 +119,28 @@ export default async function handler(req: any, res: any) {
       user_id: userId,
     };
 
-    // ID YÖNETİMİ
     let parsedId =
       adventureId && adventureId !== "null" && adventureId !== "undefined"
         ? adventureId
         : null;
 
     if (parsedId) {
-      await supabase.from("adventures").update(upsertData).eq("id", parsedId);
+      await supabase.from("adventures").update(dbData).eq("id", parsedId);
     } else {
       const { data: newData } = await supabase
         .from("adventures")
-        .insert([upsertData])
+        .insert([dbData])
         .select();
       if (newData && newData.length > 0) parsedId = newData[0].id;
     }
 
-    return res
-      .status(200)
-      .json({
-        ...result,
-        text: combinedText,
-        imageUrl: finalImageUrl,
-        adventureId: parsedId,
-      });
+    return res.status(200).json({
+      ...result,
+      text: combinedText,
+      imageUrl: finalImageUrl,
+      adventureId: parsedId,
+    });
   } catch (error: any) {
-    if (error.status === 401)
-      return res.status(401).json({ error: "OpenAI Hatası." });
     return res.status(500).json({ error: error.message });
   }
 }

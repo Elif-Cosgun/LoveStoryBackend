@@ -10,9 +10,9 @@ export const fetchTTS = async (text: string, voiceType: string) => {
     );
 
     if (!response.ok) {
-      const errText = await response.text();
-      console.error("Vercel TTS Hatası:", errText); // Gerçek hatayı terminale yazar
-      throw new Error("TTS Sunucu Hatası");
+      // Hata verip ekranı çökertmek yerine null dönüyoruz
+      console.log("ElevenLabs Kotası dolmuş veya sunucu meşgul.");
+      return null;
     }
 
     const data = await response.json();
@@ -22,7 +22,7 @@ export const fetchTTS = async (text: string, voiceType: string) => {
     }
     return null;
   } catch (error) {
-    console.error("TTS İşleme Hatası:", error);
-    return null;
+    console.log("TTS Bağlantı Hatası, sessiz devam ediliyor...");
+    return null; // Oyunun çökmesini engeller
   }
 };

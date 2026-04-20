@@ -79,16 +79,13 @@ export default function GameScreen() {
   const requestCounter = useRef(0);
   const isMounted = useRef(true);
 
-  // Supabase Çift Kayıt Engelleyici Hafızalar
   const adventureIdRef = useRef<string | null>(
     (params.adventureId as string) || null,
   );
-  const hasStarted = useRef(false); // Oyunun çift başlamasını engelleyen KİLİT
+  const hasStarted = useRef(false);
 
   useEffect(() => {
     isMounted.current = true;
-
-    // Çift Tetiklenmeyi Engelle (Sadece bir kere çalışır)
     if (hasStarted.current) return;
     hasStarted.current = true;
 
@@ -146,9 +143,6 @@ export default function GameScreen() {
       );
       await sound.setVolumeAsync(sfxVolume);
       await sound.playAsync();
-      sound.setOnPlaybackStatusUpdate((s: any) => {
-        if (s.didJustFinish) sound.unloadAsync();
-      });
     } catch (e) {}
   };
 
@@ -215,11 +209,10 @@ export default function GameScreen() {
           setHistory((prev) => [...prev, choice]);
 
         let audioUris: any[] = [];
-        if (data.parts) {
-          // ÇÖZÜM: Promise.all YERİNE SIRAYLA İSTEK (ElevenLabs Spam Korumasını Aşmak İçin)
+        if (data.parts && isTtsEnabled) {
           for (const p of data.parts) {
-            const uri = await fetchTTS(p.text, p.voiceType || "narrator");
-            audioUris.push(uri);
+            const uri = await fetchTTS(p.text, p.voiceType || "narrator_soft");
+            audioUris.push(uri); // Null dönse bile ekler, çökmez.
           }
         }
 
@@ -457,6 +450,7 @@ export default function GameScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* GÖRSEL KÜÇÜLTÜLDÜ (%38) Kİ BUTONLAR KESİLMESİN */}
             <View style={styles.imageContainer}>
               <Image
                 source={{
@@ -483,6 +477,7 @@ export default function GameScreen() {
                 </ScrollView>
               </View>
 
+              {/* ALT TARAFA PADDING EKLENDİ Kİ SON BUTON GÖZÜKSÜN */}
               <View style={styles.optionsPanel}>
                 {currentPart?.options?.map((opt: string, index: number) => {
                   const isMiniGameTrigger = activeMiniGame && index === 0;
@@ -546,7 +541,6 @@ export default function GameScreen() {
             >
               <X color="#ff1493" size={20} />
             </TouchableOpacity>
-
             <View style={{ width: "100%", alignItems: "center" }}>
               <Heart color="#ff1493" size={32} style={{ marginBottom: 10 }} />
               <Text style={styles.modalTitleDark}>AŞK FISILTISI</Text>
@@ -697,50 +691,6 @@ export default function GameScreen() {
                 }}
               />
             </View>
-
-            <View style={styles.settingRowContainer}>
-              <View style={styles.settingTopRow}>
-                <View>
-                  <Text style={styles.settingLabel}>Aşk Tıkırtısı</Text>
-                  <Text style={styles.settingSubLabel}>Buton tıklama sesi</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={async () => {
-                    playClickSound();
-                    const val = !isSfxEnabled;
-                    setIsSfxEnabled(val);
-                    await AsyncStorage.setItem("sfxEnabled", val.toString());
-                  }}
-                  style={[
-                    styles.toggleBtn,
-                    isSfxEnabled && styles.toggleBtnActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.toggleText,
-                      isSfxEnabled && { color: "#fff" },
-                    ]}
-                  >
-                    {isSfxEnabled ? "AÇIK" : "KAPALI"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <Slider
-                style={styles.slider}
-                minimumValue={0}
-                maximumValue={1}
-                step={0.1}
-                value={sfxVolume}
-                disabled={!isSfxEnabled}
-                minimumTrackTintColor="#ff1493"
-                thumbTintColor={isSfxEnabled ? "#ff1493" : "#888"}
-                onValueChange={async (val) => {
-                  setSfxVolume(val);
-                  await AsyncStorage.setItem("sfxVolume", val.toString());
-                }}
-              />
-            </View>
           </View>
         </View>
       </Modal>
@@ -807,9 +757,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
+  // GÖRSEL %38'E İNDİRİLDİ Kİ BUTONLARA YER KALSIN
   imageContainer: {
     width: width * 0.88,
-    height: height * 0.45,
+    height: height * 0.38,
     alignSelf: "center",
     borderRadius: 20,
     overflow: "hidden",
@@ -833,7 +784,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     backgroundColor: "transparent",
-    paddingTop: 15,
+    paddingTop: 10,
   },
   storyContainer: { height: 110, paddingHorizontal: 20, marginBottom: 5 },
   storyText: {
@@ -847,7 +798,9 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 6,
   },
-  optionsPanel: { paddingHorizontal: 15, paddingBottom: 15 },
+
+  // PADDING BOTTOM EKLENDİ (Son Buton Kesilmesin Diye)
+  optionsPanel: { paddingHorizontal: 15, paddingBottom: 30 },
   optionButton: {
     flexDirection: "row",
     justifyContent: "space-between",
