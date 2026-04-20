@@ -54,6 +54,12 @@ export default async function handler(req: any, res: any) {
     ### SES KADROSU:
     narrator (dış ses), man_charming (genç erkek), man_deep (olgun erkek), woman_sweet (genç kadın), woman_mature (olgun kadın), rival (soğuk karakter).
 
+    ### GÖRSEL KURALLARI:
+    - Her yeni karakter için benzersiz bir görsel oluştur. Eğer aynı karakter sonraki adımlarda tekrar gelirse aynı görseli kullan.
+    - Mekan, obje veya karakter görselleri tutarlı olmalı. Örneğin hikayede "gül" objesi geçtiyse ve sonraki adımlarda da "gül" objesi geçerse her seferinde aynı görsel kullanılmalı.
+    - Görseller romantik, sinematik bir tarzda ve yüksek kalitede olmalı.
+    - Görsel oluştururken şiddet, çıplaklık veya rahatsız edici unsurlardan kaçın.
+    
     JSON FORMATI:
     {
       "parts": [ {"text": "...", "voiceType": "..."} ],
