@@ -243,7 +243,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaProvider style={styles.mainWrapper}>
       <ImageBackground
-        source={require("../assets/images/image_0.jpg")}
+        source={require("../assets/images/image_0.png")}
         style={styles.bgImage}
         resizeMode="cover"
       >

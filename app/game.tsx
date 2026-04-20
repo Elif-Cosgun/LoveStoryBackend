@@ -297,7 +297,7 @@ export default function GameScreen() {
             <View style={styles.transitionOverlayLayer}>
               <ActivityIndicator size="large" color="#f6adf4" />
               <Text style={styles.loadingText}>
-                Kaderin iplikleri dokunuyor...
+                Kaderin İplikleri Dokunuyor...
               </Text>
             </View>
           </ImageBackground>

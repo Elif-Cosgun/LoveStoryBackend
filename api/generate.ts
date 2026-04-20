@@ -24,6 +24,7 @@ export default async function handler(req: any, res: any) {
       ? history.join("\n--- SONRAKİ ADIM ---\n")
       : "Hikayenin başlangıcı.";
 
+  // DİKKAT: SES KADROSU VE DİYALOG KURALLARI ZENGİNLEŞTİRİLDİ
   const prompt = `
     Sen Jane Austen ve modern romantik dram tarzında usta bir aşk romanı yazarısın. 
     TEMA: ${theme}
@@ -31,10 +32,26 @@ export default async function handler(req: any, res: any) {
     SEÇİM: ${choice || "Başlangıç"}
     TEMPO: ${duration}
     
-    KURAL: 4 seçenek sun. Cinsel içerik kesinlikle yasaktır, romantizmde kal. Karakterlerin fiziksel özelliklerini hikaye boyunca koru. 
-    JSON FORMATI:
+    KURAL 1: 4 seçenek sun. Cinsel içerik kesinlikle yasaktır, romantizmde kal. Karakterlerin fiziksel özelliklerini hikaye boyunca koru. 
+    
+    KURAL 2 (SESLENDİRME VE DİYALOG AYRIMI - ÇOK ÖNEMLİ):
+    - Metni "parts" (kısımlar) dizisine bölerken, anlatıcının kısımlarını ve her bir karakterin diyaloglarını KESİNLİKLE AYIR.
+    - Karakterin yaşına, cinsiyetine ve rolüne göre şu "voiceType" etiketlerinden en uygun olanını seç:
+      * "narrator" -> Sadece olay anlatımı ve dış ses için.
+      * "man_charming" -> Genç, çekici, romantik erkek başrol için.
+      * "man_deep" -> Olgun, ciddi, bilge veya baba figürü erkekler için.
+      * "woman_sweet" -> Genç, tatlı, duygusal kadın başrol için.
+      * "woman_mature" -> Olgun, zarif, otoriter kadınlar veya dedikoducu arkadaşlar için.
+      * "rival" -> Soğuk, kibirli, rakip veya kötü niyetli kişiler için.
+      * "kid" -> Çocuk karakterler için.
+    
+    ÖRNEK JSON YAPISI:
     {
-      "parts": [ { "text": "Metin...", "voiceType": "narrator_soft" } ],
+      "parts": [ 
+        { "text": "Balodaki kalabalık aniden sessizleşti.", "voiceType": "narrator" },
+        { "text": "Bu dansı bana lütfeder misiniz?", "voiceType": "man_charming" },
+        { "text": "Ona asla güvenme tatlım.", "voiceType": "woman_mature" }
+      ],
       "options": ["seçenek 1", "seçenek 2", "seçenek 3", "seçenek 4"],
       "imagePrompt": "A highly detailed, romantic cinematic digital painting of...",
       "isEnd": false,
@@ -79,17 +96,15 @@ export default async function handler(req: any, res: any) {
       user_id: userId,
     };
 
-    // ID YÖNETİMİ (KESİN ÇÖZÜM)
+    // ID YÖNETİMİ
     let parsedId =
       adventureId && adventureId !== "null" && adventureId !== "undefined"
         ? adventureId
         : null;
 
     if (parsedId) {
-      // Eğer ID varsa ASLA yeni satır ekleme, SADECE GÜNCELLE
       await supabase.from("adventures").update(upsertData).eq("id", parsedId);
     } else {
-      // Eğer ID yoksa yeni satır ekle ve ID'yi geri döndür
       const { data: newData } = await supabase
         .from("adventures")
         .insert([upsertData])
