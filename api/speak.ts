@@ -10,11 +10,11 @@ export default async function handler(req, res) {
 
   const VOICES = {
     narrator: "pFZP5JQG7iQjIQuC4Bku", // Sakin dış ses
-    man_charming: "TX3OmfQAyNjNbJj7Q6pX", // Çekici erkek
-    man_deep: "N2lVS1w4EtoT3dr4eOWO", // Olgun erkek
-    woman_sweet: "EXAVITQu4vr4xnSDxMaL", // Tatlı kadın
-    woman_mature: "MF3mGyEYCl7XYWbV9V6O", // Olgun/Rakip kadın
-    rival: "ErXwobaYiN019PkySvjV", // Soğuk erkek rakip
+    man_charming: "Ongxzjm6NAJamxlPiP4z", // Çekici erkek
+    man_deep: "Ongxzjm6NAJamxlPiP4z", // Olgun erkek
+    woman_sweet: "pPdl9cQBQq4p6mRkZy2Z", // Tatlı kadın
+    woman_mature: "54Cze5LrTSyLgbO6Fhlc", // Olgun/Rakip kadın
+    rival: "qA5SHJ9UjGlW2QwXWR7w", // Soğuk erkek rakip
   };
 
   const voiceId = VOICES[voiceType] || VOICES.narrator;
