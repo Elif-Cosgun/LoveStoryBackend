@@ -20,7 +20,7 @@ export const fetchStoryStep = async (
   try {
     // VERCEL LINKIN BURADA
     const response = await fetch(
-      "https://love-story-backend.vercel.app/api/generate",
+      "https://love-story-backend-six.vercel.app/api/generate",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
