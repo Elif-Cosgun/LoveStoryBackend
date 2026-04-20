@@ -8,13 +8,14 @@ import { StatusBar } from "expo-status-bar";
 import {
   BookOpen,
   CheckCircle,
+  Clock,
   Heart,
   Settings,
   Timer,
   Trash2,
   X,
 } from "lucide-react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -38,27 +39,27 @@ SplashScreen.preventAutoHideAsync();
 const exampleThemes = [
   {
     id: 1,
-    title: "Kraliyet Balosu",
+    title: "Yağmurlu Kafe",
     prompt:
-      "18. yüzyılda görkemli bir saray balosunda, kimliğini gizleyen gizemli bir prensle edilen tutkulu bir dans.",
+      "Paris'te yağmurlu bir günde kafede çarpışarak dökülen kahveler ve başlayan tutkulu aşk.",
   },
   {
     id: 2,
-    title: "Yaz Yağmuru",
+    title: "Lise Aşkı",
     prompt:
-      "Şiddetli bir yaz yağmurunda sığındığın eski bir sahafta, aynı kitaba uzandığın yabancıyla başlayan derin bağ.",
+      "Yıllar sonra lise mezuniyet buluşmasında ilk aşkınla göz göze gelme anı.",
   },
   {
     id: 3,
-    title: "Zorunlu Sözleşme",
+    title: "Düşmanlıktan Aşka",
     prompt:
-      "Aileni iflastan kurtarmak için ülkenin en soğuk ve acımasız CEO'su ile yapılan sahte bir evlilik anlaşması.",
+      "İş yerinde sürekli rekabet ettiğin ukala ama çekici iş arkadaşınla asansörde mahsur kalmak.",
   },
   {
     id: 4,
     title: "Yıldızların Altında",
     prompt:
-      "Issız bir orman kampında, yıllardır en yakın arkadaşın olan kişiyle ateş başında yalnız kaldığın o itiraf gecesi.",
+      "Issız bir orman kampında, yıllardır en yakın arkadaşın olan kişiyle yalnız kaldığın o itiraf gecesi.",
   },
   {
     id: 5,
@@ -89,7 +90,7 @@ export default function HomeScreen() {
   const [isSfxEnabled, setIsSfxEnabled] = useState(true);
   const [sfxVolume, setSfxVolume] = useState(1.0);
 
-  const bgmSound = React.useRef<Audio.Sound | null>(null);
+  const bgmSound = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -99,6 +100,7 @@ export default function HomeScreen() {
           staysActiveInBackground: false,
           shouldDuckAndroid: true,
         });
+
         let storedId = await SecureStore.getItemAsync("user_unique_id");
         if (!storedId) {
           storedId = `user_${Math.random().toString(36).substring(2, 9)}`;
@@ -154,12 +156,18 @@ export default function HomeScreen() {
             await bgmSound.current.playAsync();
             await bgmSound.current.setVolumeAsync(musicVolume);
           }
-        } catch (e) {}
+        } catch (e) {
+          console.log("happy.mp3 yüklenemedi.");
+        }
       };
+
       startMusic();
+
       return () => {
         isActive = false;
-        if (bgmSound.current) bgmSound.current.pauseAsync();
+        if (bgmSound.current) {
+          bgmSound.current.pauseAsync();
+        }
       };
     }, [isMusicEnabled, musicVolume]),
   );
@@ -184,9 +192,11 @@ export default function HomeScreen() {
       setIsAlertVisible(true);
       return;
     }
+
     if (bgmSound.current) {
       await bgmSound.current.stopAsync();
     }
+
     router.push({
       pathname: "/game",
       params: {
@@ -209,8 +219,12 @@ export default function HomeScreen() {
     setIsHistoryLoading(true);
     setIsHistoryVisible(true);
     try {
+      const timestamp = new Date().getTime(); // Önbelleği (cache) kırmak için
       const response = await fetch(
-        `https://love-story-backend-six.vercel.app/api/get-adventure?userId=${userId}`,
+        `https://love-story-backend-six.vercel.app/api/get-adventure?userId=${userId}&t=${timestamp}`,
+        {
+          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+        },
       );
       const data = await response.json();
       setAdventures(Array.isArray(data) ? data : []);
@@ -233,17 +247,20 @@ export default function HomeScreen() {
     } catch (e) {}
   };
 
-  const filteredAdventures = adventures.filter((adv) =>
-    activeTab === "completed" ? adv.is_completed : !adv.is_completed,
-  );
+  // TAM GÜVENLİ GEÇMİŞ FİLTRELEME
+  const filteredAdventures = adventures.filter((adv) => {
+    const isDone =
+      adv.is_completed === true ||
+      adv.is_completed === "true" ||
+      adv.is_completed === 1;
+    return activeTab === "completed" ? isDone : !isDone;
+  });
 
   return (
-    <SafeAreaProvider style={{ flex: 1, backgroundColor: "#fff0f5" }}>
+    <SafeAreaProvider style={styles.mainWrapper}>
       <ImageBackground
-        source={{
-          uri: "https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=1080&auto=format&fit=crop",
-        }}
-        style={styles.container}
+        source={require("../assets/images/bg_romantic.jpg")}
+        style={styles.bgImage}
         resizeMode="cover"
       >
         <StatusBar style="light" />
@@ -257,10 +274,10 @@ export default function HomeScreen() {
               }}
               style={styles.smallIconBtn}
             >
-              <Settings size={20} color="#ff1493" />
+              <Settings size={22} color="#FFD700" />
             </TouchableOpacity>
             <TouchableOpacity onPress={openHistory} style={styles.smallIconBtn}>
-              <BookOpen size={20} color="#ff1493" />
+              <BookOpen size={22} color="#FFD700" />
             </TouchableOpacity>
           </View>
 
@@ -271,7 +288,7 @@ export default function HomeScreen() {
             <View style={styles.content}>
               <View style={styles.header}>
                 <Text style={styles.mainTitle}>LOVE STORY</Text>
-                <Text style={styles.subTitle}>Kendi aşk romanını yaz...</Text>
+                <Text style={styles.subTitle}>Kendi masalını yaz...</Text>
               </View>
 
               <View style={styles.glassPanel}>
@@ -280,10 +297,10 @@ export default function HomeScreen() {
                     HAYALİNDEKİ AŞK TEMASI
                   </Text>
                   <View style={styles.inputWrapper}>
-                    <Heart size={16} color="#ff1493" style={styles.inputIcon} />
+                    <Heart size={18} color="#FFD700" style={styles.inputIcon} />
                     <TextInput
                       placeholder="Kendi romantik hikayeni yaz..."
-                      placeholderTextColor="#ffb6c1"
+                      placeholderTextColor="rgba(255, 255, 255, 0.5)"
                       style={styles.input}
                       value={theme}
                       onChangeText={setTheme}
@@ -354,7 +371,7 @@ export default function HomeScreen() {
                 <TouchableOpacity
                   style={styles.startTrigger}
                   onPress={startGame}
-                  activeOpacity={0.7}
+                  activeOpacity={0.8}
                 >
                   <Text style={styles.startTriggerText}>KALBİNİ AÇ</Text>
                 </TouchableOpacity>
@@ -363,14 +380,15 @@ export default function HomeScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
 
-        {/* MODALLAR */}
+        {/* UYARI MODALI */}
         <Modal visible={isAlertVisible} animationType="fade" transparent={true}>
           <View style={styles.modalOverlayCen}>
             <View style={styles.customAlertBox}>
-              <Heart color="#ff1493" size={32} style={{ marginBottom: 10 }} />
+              <Heart color="#FFD700" size={36} style={{ marginBottom: 15 }} />
               <Text style={styles.alertTitle}>AŞK İLHAM İSTER</Text>
               <Text style={styles.alertMessage}>
-                Lütfen önce hikayeni yaz veya seç.
+                Lütfen başlamadan önce nasıl bir aşk hikayesi yaşamak istediğini
+                yaz veya seç.
               </Text>
               <TouchableOpacity
                 style={styles.alertButton}
@@ -385,6 +403,7 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
+        {/* GEÇMİŞ MODALI */}
         <Modal
           visible={isHistoryVisible}
           animationType="slide"
@@ -394,9 +413,9 @@ export default function HomeScreen() {
             <View style={[styles.modalContent, { height: height * 0.85 }]}>
               <View style={styles.modalHeader}>
                 <View>
-                  <Text style={styles.modalTitle}>AŞK DEFTERİ</Text>
-                  <Text style={styles.modalSubtitle}>
-                    Yarım kalan ve biten hikayelerin
+                  <Text style={styles.modalTitleDark}>AŞK DEFTERİ</Text>
+                  <Text style={styles.modalSubtitleDark}>
+                    Yarım kalan ve biten masalların
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -406,7 +425,7 @@ export default function HomeScreen() {
                   }}
                   style={styles.modalCloseCircle}
                 >
-                  <X color="#ff1493" size={20} />
+                  <X color="#ff1493" size={22} />
                 </TouchableOpacity>
               </View>
               <View style={styles.tabContainer}>
@@ -421,7 +440,7 @@ export default function HomeScreen() {
                   ]}
                 >
                   <CheckCircle
-                    size={14}
+                    size={16}
                     color={activeTab === "completed" ? "#fff" : "#ff1493"}
                   />
                   <Text
@@ -444,7 +463,7 @@ export default function HomeScreen() {
                   ]}
                 >
                   <Timer
-                    size={14}
+                    size={16}
                     color={activeTab === "pending" ? "#fff" : "#ff1493"}
                   />
                   <Text
@@ -495,6 +514,18 @@ export default function HomeScreen() {
                           <Text style={styles.advTheme} numberOfLines={1}>
                             {item.theme}
                           </Text>
+                          <View style={styles.advDateRow}>
+                            <Clock
+                              size={12}
+                              color="#ff1493"
+                              style={{ marginRight: 4 }}
+                            />
+                            <Text style={styles.advDate}>
+                              {new Date(item.created_at).toLocaleDateString(
+                                "tr-TR",
+                              )}
+                            </Text>
+                          </View>
                           <Text style={styles.advHistory} numberOfLines={1}>
                             {item.history.join(" ➔ ")}
                           </Text>
@@ -503,14 +534,14 @@ export default function HomeScreen() {
                           onPress={() => deleteAdventure(item.id)}
                           style={styles.deleteBtnStatic}
                         >
-                          <Trash2 size={18} color="#ff4444" />
+                          <Trash2 size={20} color="#ff4444" />
                         </TouchableOpacity>
                       </TouchableOpacity>
                     </View>
                   )}
                   ListEmptyComponent={
                     <View style={styles.emptyContainer}>
-                      <Text style={{ color: "#555" }}>
+                      <Text style={{ color: "#888", fontStyle: "italic" }}>
                         Burası henüz bomboş...
                       </Text>
                     </View>
@@ -521,6 +552,7 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
+        {/* AYARLAR MODALI */}
         <Modal
           visible={isSettingsVisible}
           animationType="fade"
@@ -535,8 +567,10 @@ export default function HomeScreen() {
             >
               <View style={styles.modalHeader}>
                 <View>
-                  <Text style={styles.modalTitle}>AYARLAR</Text>
-                  <Text style={styles.modalSubtitle}>Sesi ve hissi ayarla</Text>
+                  <Text style={styles.modalTitleDark}>AYARLAR</Text>
+                  <Text style={styles.modalSubtitleDark}>
+                    Sesi ve hissi ayarla
+                  </Text>
                 </View>
                 <TouchableOpacity
                   onPress={() => {
@@ -545,7 +579,7 @@ export default function HomeScreen() {
                   }}
                   style={styles.modalCloseCircle}
                 >
-                  <X color="#ff1493" size={20} />
+                  <X color="#ff1493" size={22} />
                 </TouchableOpacity>
               </View>
 
@@ -570,7 +604,12 @@ export default function HomeScreen() {
                       isMusicEnabled && styles.toggleBtnActive,
                     ]}
                   >
-                    <Text style={styles.toggleText}>
+                    <Text
+                      style={[
+                        styles.toggleText,
+                        isMusicEnabled && { color: "#fff" },
+                      ]}
+                    >
                       {isMusicEnabled ? "AÇIK" : "KAPALI"}
                     </Text>
                   </TouchableOpacity>
@@ -583,7 +622,7 @@ export default function HomeScreen() {
                   value={musicVolume}
                   disabled={!isMusicEnabled}
                   minimumTrackTintColor="#ff1493"
-                  thumbTintColor={isMusicEnabled ? "#ff1493" : "#444"}
+                  thumbTintColor={isMusicEnabled ? "#ff1493" : "#888"}
                   onValueChange={async (val) => {
                     setMusicVolume(val);
                     await AsyncStorage.setItem("musicVolume", val.toString());
@@ -613,7 +652,12 @@ export default function HomeScreen() {
                       isTtsEnabled && styles.toggleBtnActive,
                     ]}
                   >
-                    <Text style={styles.toggleText}>
+                    <Text
+                      style={[
+                        styles.toggleText,
+                        isTtsEnabled && { color: "#fff" },
+                      ]}
+                    >
                       {isTtsEnabled ? "AÇIK" : "KAPALI"}
                     </Text>
                   </TouchableOpacity>
@@ -626,7 +670,7 @@ export default function HomeScreen() {
                   value={ttsVolume}
                   disabled={!isTtsEnabled}
                   minimumTrackTintColor="#ff1493"
-                  thumbTintColor={isTtsEnabled ? "#ff1493" : "#444"}
+                  thumbTintColor={isTtsEnabled ? "#ff1493" : "#888"}
                   onValueChange={async (val) => {
                     setTtsVolume(val);
                     await AsyncStorage.setItem("ttsVolume", val.toString());
@@ -654,7 +698,12 @@ export default function HomeScreen() {
                       isSfxEnabled && styles.toggleBtnActive,
                     ]}
                   >
-                    <Text style={styles.toggleText}>
+                    <Text
+                      style={[
+                        styles.toggleText,
+                        isSfxEnabled && { color: "#fff" },
+                      ]}
+                    >
                       {isSfxEnabled ? "AÇIK" : "KAPALI"}
                     </Text>
                   </TouchableOpacity>
@@ -667,7 +716,7 @@ export default function HomeScreen() {
                   value={sfxVolume}
                   disabled={!isSfxEnabled}
                   minimumTrackTintColor="#ff1493"
-                  thumbTintColor={isSfxEnabled ? "#ff1493" : "#444"}
+                  thumbTintColor={isSfxEnabled ? "#ff1493" : "#888"}
                   onValueChange={async (val) => {
                     setSfxVolume(val);
                     await AsyncStorage.setItem("sfxVolume", val.toString());
@@ -682,34 +731,39 @@ export default function HomeScreen() {
   );
 }
 
+// KRALİYET ROMANTİZMİ TASARIMI
 const styles = StyleSheet.create({
-  mainWrapper: { flex: 1, backgroundColor: "#fff0f5" },
+  mainWrapper: { flex: 1, backgroundColor: "#1a0b12" },
   bgImage: { flex: 1 },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,240,245,0.6)",
+    backgroundColor: "rgba(20, 5, 10, 0.4)",
   },
   safeArea: { flex: 1 },
+
   topIconBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 25,
-    paddingTop: 10,
+    paddingTop: 15,
     zIndex: 10,
   },
   smallIconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#fff",
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "rgba(30, 0, 10, 0.6)",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#ff1493",
+    borderWidth: 1,
+    borderColor: "#FFD700",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.5,
     shadowRadius: 5,
     elevation: 5,
   },
+
   keyboardView: { flex: 1, width: "100%" },
   content: {
     flex: 1,
@@ -720,179 +774,232 @@ const styles = StyleSheet.create({
   },
   header: { alignItems: "center", marginBottom: 30 },
   mainTitle: {
-    fontSize: 44,
-    fontWeight: "900",
-    color: "#ff1493",
+    fontSize: Platform.OS === "ios" ? 56 : 46,
+    fontFamily: Platform.OS === "ios" ? "SnellRoundhand" : "serif",
+    fontWeight: "bold",
+    color: "#FFD700",
     textAlign: "center",
     letterSpacing: 2,
+    textShadowColor: "rgba(255, 20, 147, 0.8)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 15,
   },
-  subTitle: { fontSize: 16, color: "#ff69b4", fontWeight: "600", marginTop: 5 },
+  subTitle: {
+    fontSize: 18,
+    color: "#fff",
+    fontStyle: "italic",
+    marginTop: 5,
+    textShadowColor: "#000",
+    textShadowRadius: 5,
+  },
+
   glassPanel: {
     width: "100%",
     maxWidth: 400,
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: "rgba(20, 5, 10, 0.75)",
     padding: 25,
     borderRadius: 25,
     borderWidth: 1.5,
-    borderColor: "#ffb6c1",
-    shadowColor: "#ff1493",
+    borderColor: "#FFD700",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.5,
     shadowRadius: 20,
     elevation: 10,
   },
   sectionLabel: {
-    color: "#ff1493",
-    fontSize: 14,
+    color: "#FFD700",
+    fontSize: 13,
     fontWeight: "bold",
-    marginBottom: 8,
-    letterSpacing: 1,
+    marginBottom: 12,
+    letterSpacing: 1.5,
   },
-  inputSection: { width: "100%", marginBottom: 15 },
+
+  inputSection: { width: "100%", marginBottom: 20 },
   inputWrapper: {
     flexDirection: "row",
-    borderBottomWidth: 2,
-    borderBottomColor: "#ff1493",
+    borderBottomWidth: 1.5,
+    borderBottomColor: "#FFD700",
     alignItems: "center",
     paddingHorizontal: 5,
-    paddingVertical: 5,
+    paddingVertical: 8,
   },
-  inputIcon: { marginRight: 8 },
+  inputIcon: { marginRight: 10 },
   input: {
     flex: 1,
     padding: 8,
-    color: "#333",
+    color: "#fff",
     fontSize: 16,
     height: 45,
     fontWeight: "500",
   },
-  examplesSection: { height: 45, width: "100%", marginBottom: 20 },
+
+  examplesSection: { height: 45, width: "100%", marginBottom: 25 },
   card: {
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 15,
-    marginRight: 10,
+    paddingHorizontal: 16,
+    marginRight: 12,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#ffb6c1",
-    backgroundColor: "#fff0f5",
-    height: 35,
+    borderColor: "rgba(255, 215, 0, 0.4)",
+    backgroundColor: "rgba(0,0,0,0.4)",
+    height: 38,
   },
   activeCard: {
-    borderColor: "#ff1493",
-    backgroundColor: "rgba(255, 20, 147, 0.15)",
+    borderColor: "#FFD700",
+    backgroundColor: "rgba(255, 20, 147, 0.3)",
   },
-  cardTitle: { color: "#ff69b4", fontSize: 14, fontWeight: "600" },
-  activeCardTitle: { color: "#ff1493", fontWeight: "bold" },
-  durationSection: { width: "100%", marginBottom: 15 },
+  cardTitle: { color: "#ccc", fontSize: 14, fontWeight: "600" },
+  activeCardTitle: { color: "#FFD700", fontWeight: "bold" },
+
+  durationSection: { width: "100%", marginBottom: 20 },
   durationRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderRadius: 15,
+    padding: 5,
   },
   dButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
     alignItems: "center",
     justifyContent: "center",
   },
-  dText: { color: "#ffb6c1", fontSize: 14, fontWeight: "bold" },
-  activeDText: { color: "#ff1493" },
-  durationSeparator: { color: "#ffb6c1", fontSize: 16, marginHorizontal: 5 },
+  dText: {
+    color: "rgba(255, 255, 255, 0.5)",
+    fontSize: 14,
+    fontWeight: "bold",
+    letterSpacing: 1,
+  },
+  activeDText: {
+    color: "#FFD700",
+    textShadowColor: "#ff1493",
+    textShadowRadius: 8,
+  },
+  durationSeparator: {
+    color: "rgba(255, 215, 0, 0.2)",
+    fontSize: 16,
+    marginHorizontal: 2,
+  },
+
   startTrigger: {
     backgroundColor: "#ff1493",
-    paddingVertical: 15,
+    paddingVertical: 16,
     width: "100%",
     borderRadius: 25,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 5,
+    borderWidth: 1,
+    borderColor: "#FFD700",
     shadowColor: "#ff1493",
     shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOpacity: 0.6,
+    shadowRadius: 15,
+    elevation: 8,
   },
   startTriggerText: {
     color: "#fff",
     fontSize: 22,
+    fontFamily: Platform.OS === "ios" ? "SnellRoundhand" : "serif",
     fontWeight: "bold",
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
 
   modalOverlayCen: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    backgroundColor: "rgba(0,0,0,0.8)",
     justifyContent: "center",
     alignItems: "center",
   },
   customAlertBox: {
-    width: width * 0.8,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 25,
+    width: width * 0.85,
+    backgroundColor: "#1a0b12",
+    borderRadius: 25,
+    padding: 30,
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFD700",
   },
   alertTitle: {
-    color: "#ff1493",
-    fontSize: 20,
+    color: "#FFD700",
+    fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: 12,
+    letterSpacing: 1,
   },
   alertMessage: {
-    color: "#555",
+    color: "#ddd",
     fontSize: 16,
     textAlign: "center",
     marginBottom: 25,
+    lineHeight: 24,
   },
   alertButton: {
     backgroundColor: "#ff1493",
-    paddingVertical: 12,
-    paddingHorizontal: 35,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
     borderRadius: 25,
+    borderWidth: 1,
+    borderColor: "#FFD700",
   },
-  alertButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  alertButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    letterSpacing: 1,
+  },
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.7)",
     justifyContent: "flex-end",
   },
   modalContent: {
     width: width,
-    backgroundColor: "#fff",
+    backgroundColor: "#1a0b12",
     borderTopLeftRadius: 35,
     borderTopRightRadius: 35,
     padding: 25,
-    borderWidth: 1.5,
-    borderColor: "#ffb6c1",
+    borderWidth: 2,
+    borderColor: "#FFD700",
+    borderBottomWidth: 0,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 20,
   },
-  modalTitle: { color: "#ff1493", fontSize: 24, fontWeight: "bold" },
-  modalSubtitle: { color: "#777", fontSize: 14 },
+  modalTitleDark: {
+    color: "#FFD700",
+    fontSize: 26,
+    fontWeight: "bold",
+    fontFamily: Platform.OS === "ios" ? "SnellRoundhand" : "serif",
+    letterSpacing: 1,
+  },
+  modalSubtitleDark: { color: "#aaa", fontSize: 14, fontStyle: "italic" },
   modalCloseCircle: {
-    width: 40,
-    height: 40,
-    backgroundColor: "#fff0f5",
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    backgroundColor: "rgba(255, 20, 147, 0.1)",
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ffb6c1",
+    borderColor: "#ff1493",
   },
 
   tabContainer: {
     flexDirection: "row",
     marginBottom: 20,
-    backgroundColor: "#fff0f5",
-    borderRadius: 10,
-    padding: 5,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 12,
+    padding: 6,
     borderWidth: 1,
-    borderColor: "#ffb6c1",
+    borderColor: "#331520",
   },
   tabButton: {
     flex: 1,
@@ -902,69 +1009,68 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 8,
   },
-  activeTab: { backgroundColor: "rgba(255,20,147,0.15)" },
-  tabText: { color: "#333", fontSize: 14, marginLeft: 8, fontWeight: "bold" },
-  activeTabText: { color: "#ff1493" },
+  activeTab: { backgroundColor: "rgba(255, 20, 147, 0.2)" },
+  tabText: { color: "#888", fontSize: 14, marginLeft: 8, fontWeight: "bold" },
+  activeTabText: { color: "#FFD700" },
   cardWrapper: { marginBottom: 15 },
   adventureCard: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 12,
+    backgroundColor: "rgba(30, 0, 10, 0.6)",
+    padding: 18,
+    borderRadius: 15,
     borderLeftWidth: 5,
-    borderLeftColor: "#ff1493",
+    borderLeftColor: "#FFD700",
     flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#331520",
   },
   advContent: { flex: 1 },
-  advTheme: { color: "#ff1493", fontSize: 18, fontWeight: "bold" },
-  advHistory: {
-    color: "#777",
-    fontSize: 12,
-    marginTop: 5,
-    fontStyle: "italic",
+  advTheme: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 4,
   },
+  advDateRow: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
+  advDate: { color: "#ff1493", fontSize: 12, fontWeight: "600" },
+  advHistory: { color: "#aaa", fontSize: 13, fontStyle: "italic" },
   deleteBtnStatic: {
-    padding: 10,
-    backgroundColor: "rgba(255,0,0,0.05)",
-    borderRadius: 10,
+    padding: 12,
+    backgroundColor: "rgba(255,0,0,0.1)",
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,0,0,0.2)",
+    borderColor: "rgba(255,0,0,0.3)",
   },
-  emptyContainer: { alignItems: "center", marginTop: 50 },
+  emptyContainer: { alignItems: "center", marginTop: 60 },
 
   settingRowContainer: {
-    marginVertical: 10,
-    paddingBottom: 15,
+    marginVertical: 12,
+    paddingBottom: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "#ffe4e1",
+    borderBottomColor: "#331520",
   },
   settingTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 5,
+    marginBottom: 8,
   },
   slider: { width: "100%", height: 40 },
-  settingLabel: { color: "#333", fontSize: 18, fontWeight: "bold" },
-  settingSubLabel: { color: "#777", fontSize: 12, marginTop: 4 },
+  settingLabel: { color: "#FFD700", fontSize: 18, fontWeight: "bold" },
+  settingSubLabel: { color: "#aaa", fontSize: 13, marginTop: 4 },
   toggleBtn: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "#fff0f5",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.4)",
     borderWidth: 1,
-    borderColor: "#ffb6c1",
-    minWidth: 80,
+    borderColor: "#555",
+    minWidth: 85,
     alignItems: "center",
   },
   toggleBtnActive: {
-    backgroundColor: "rgba(255,20,147,0.15)",
+    backgroundColor: "rgba(255, 20, 147, 0.2)",
     borderColor: "#ff1493",
   },
-  toggleText: { color: "#ff1493", fontWeight: "bold" },
+  toggleText: { color: "#777", fontWeight: "bold" },
 });

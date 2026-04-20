@@ -9,9 +9,10 @@ import {
   Home,
   RefreshCw,
   Settings,
-  X
+  Sparkles,
+  X,
 } from "lucide-react-native";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -21,8 +22,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchTTS } from "../services/elevenlabs";
@@ -39,15 +41,13 @@ export default function GameScreen() {
   const userId = params.userId as string;
 
   const [isLoading, setIsLoading] = useState(true);
-  const [adventureId, setAdventureId] = useState<string | null>(
-    (params.adventureId as string) || null,
-  );
   const [history, setHistory] = useState<string[]>([]);
   const [inventory, setInventory] = useState<string[]>([]);
   const [currentPart, setCurrentPart] = useState<any>(null);
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
+  // AYARLAR
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isMusicEnabled, setIsMusicEnabled] = useState(
     params.initialMusic === "true",
@@ -68,12 +68,21 @@ export default function GameScreen() {
     params.sfxVolume ? parseFloat(params.sfxVolume as string) : 1.0,
   );
 
+  const [activeMiniGame, setActiveMiniGame] = useState<any>(null);
+  const [isMiniGameModalVisible, setIsMiniGameModalVisible] = useState(false);
+  const [riddleInput, setRiddleInput] = useState("");
+  const [riddleError, setRiddleError] = useState<string | null>(null);
+
   const bgmSound = useRef<Audio.Sound | null>(null);
   const ttsSound = useRef<Audio.Sound | null>(null);
-
   const scrollViewRef = useRef<ScrollView>(null);
   const requestCounter = useRef(0);
   const isMounted = useRef(true);
+
+  // VERİTABANI DUPLİKE SORUNUNU ÇÖZEN HAFIZA (useRef)
+  const adventureIdRef = useRef<string | null>(
+    (params.adventureId as string) || null,
+  );
 
   useEffect(() => {
     isMounted.current = true;
@@ -88,9 +97,7 @@ export default function GameScreen() {
           },
         );
         if (isMounted.current) bgmSound.current = sound;
-      } catch (e) {
-        console.log("Müzik yüklenemedi.");
-      }
+      } catch (e) {}
     };
     startMusic();
 
@@ -98,11 +105,7 @@ export default function GameScreen() {
       ? JSON.parse(params.resumedHistory as string)
       : [];
     setHistory(h);
-    loadNextStep(
-      params.resumedHistory ? "[RESUME]" : null,
-      h,
-      (params.adventureId as string) || null,
-    );
+    loadNextStep(params.resumedHistory ? "[RESUME]" : null, h);
 
     return () => {
       isMounted.current = false;
@@ -111,7 +114,6 @@ export default function GameScreen() {
     };
   }, []);
 
-  // ANINDA MÜZİK GÜNCELLEME
   useEffect(() => {
     if (bgmSound.current) {
       if (isMusicEnabled) {
@@ -121,7 +123,6 @@ export default function GameScreen() {
     }
   }, [isMusicEnabled, musicVolume]);
 
-  // ANINDA SESLENDİRME (TTS) GÜNCELLEME
   useEffect(() => {
     if (ttsSound.current) {
       if (isTtsEnabled) {
@@ -155,113 +156,132 @@ export default function GameScreen() {
   const restartGame = () => {
     playClickSound();
     setHistory([]);
-    setAdventureId(null);
+    adventureIdRef.current = null;
     setInventory([]);
-    loadNextStep(null, [], null);
+    loadNextStep(null, []);
   };
 
-  const loadNextStep = useCallback(
-    async (
-      choice: string | null,
-      currentHistory: string[],
-      currentId: string | null,
-    ) => {
-      requestCounter.current += 1;
-      const myReq = requestCounter.current;
-      setIsLoading(true);
-      setDisplayedText("");
+  const loadNextStep = async (
+    choice: string | null,
+    currentHistory: string[],
+  ) => {
+    requestCounter.current += 1;
+    const myReq = requestCounter.current;
+    setIsLoading(true);
+    setDisplayedText("");
+    setActiveMiniGame(null);
+    setIsMiniGameModalVisible(false);
 
-      if (ttsSound.current) {
-        await ttsSound.current.unloadAsync();
-        ttsSound.current = null;
-      }
+    if (ttsSound.current) {
+      await ttsSound.current.unloadAsync();
+      ttsSound.current = null;
+    }
 
-      let payload = choice;
-      if (choice === "[RESUME]")
-        payload = "[RESUME] SİSTEM MESAJI: Oyuncu geri döndü.";
+    let payload = choice;
+    if (choice === "[RESUME]")
+      payload = "[RESUME] SİSTEM MESAJI: Oyuncu geri döndü.";
 
-      try {
-        const data = await fetchStoryStep(
-          theme,
-          payload,
-          currentHistory,
-          inventory,
-          duration,
-          currentId,
-          userId,
-        );
-        if (requestCounter.current !== myReq || !isMounted.current) return;
+    try {
+      // DİKKAT: adventureIdRef.current gönderilerek eski ID'nin unutulması engellendi
+      const data = await fetchStoryStep(
+        theme,
+        payload,
+        currentHistory,
+        inventory,
+        duration,
+        adventureIdRef.current,
+        userId,
+      );
 
-        if (data.error) {
-          setDisplayedText(data.error);
-          setIsLoading(false);
-          return;
-        }
-
-        if (data) {
-          if (data.adventureId) setAdventureId(data.adventureId);
-          setInventory(data.inventory || []);
-          setCurrentPart(data);
-
-          if (choice && choice !== "[RESUME]")
-            setHistory((prev) => [...prev, choice]);
-
-          let audioUris: any[] = [];
-          if (data.parts) {
-            audioUris = await Promise.all(
-              data.parts.map((p: any) =>
-                fetchTTS(p.text, p.voiceType || "narrator_soft"),
-              ),
-            );
-          }
-
-          setIsLoading(false); // Ses ve resimler indikten sonra ekrana geç!
-          setIsTyping(true);
-
-          let idx = 0;
-          const full = data.text || "";
-          const interval = setInterval(() => {
-            if (!isMounted.current || requestCounter.current !== myReq) {
-              clearInterval(interval);
-              return;
-            }
-            idx++;
-            setDisplayedText(full.slice(0, idx));
-            if (idx >= full.length) {
-              clearInterval(interval);
-              setIsTyping(false);
-            }
-          }, 35);
-
-          if (data.parts) {
-            for (let i = 0; i < data.parts.length; i++) {
-              if (!isMounted.current || requestCounter.current !== myReq) break;
-              if (audioUris[i]) {
-                const { sound, status }: any = await Audio.Sound.createAsync(
-                  { uri: audioUris[i] },
-                  { shouldPlay: isTtsEnabled, volume: ttsVolume },
-                );
-                ttsSound.current = sound;
-                await new Promise((r) =>
-                  setTimeout(r, status.durationMillis || 2000),
-                );
-                await sound.unloadAsync();
-                ttsSound.current = null;
-              }
-            }
-          }
-        }
-      } catch (e) {
+      if (requestCounter.current !== myReq || !isMounted.current) return;
+      if (data.error) {
+        setDisplayedText(data.error);
         setIsLoading(false);
+        return;
       }
-    },
-    [theme, duration, userId, inventory, isTtsEnabled, ttsVolume],
-  );
+
+      if (data) {
+        // Yeni ID gelirse hafızaya kazı
+        if (data.adventureId) adventureIdRef.current = data.adventureId;
+
+        setInventory(data.inventory || []);
+        setCurrentPart(data);
+
+        if (choice && choice !== "[RESUME]")
+          setHistory((prev) => [...prev, choice]);
+
+        let audioUris: any[] = [];
+        if (data.parts) {
+          audioUris = await Promise.all(
+            data.parts.map((p: any) =>
+              fetchTTS(p.text, p.voiceType || "narrator_soft"),
+            ),
+          );
+        }
+
+        setIsLoading(false);
+        setIsTyping(true);
+
+        let idx = 0;
+        const full = data.text || "";
+        const interval = setInterval(() => {
+          if (!isMounted.current || requestCounter.current !== myReq) {
+            clearInterval(interval);
+            return;
+          }
+          idx++;
+          setDisplayedText(full.slice(0, idx));
+          if (idx >= full.length) {
+            clearInterval(interval);
+            setIsTyping(false);
+          }
+        }, 35);
+
+        if (data.parts) {
+          for (let i = 0; i < data.parts.length; i++) {
+            if (!isMounted.current || requestCounter.current !== myReq) break;
+            if (audioUris[i]) {
+              const { sound, status }: any = await Audio.Sound.createAsync(
+                { uri: audioUris[i] },
+                { shouldPlay: isTtsEnabled, volume: ttsVolume },
+              );
+              ttsSound.current = sound;
+              await new Promise((r) =>
+                setTimeout(r, status.durationMillis || 2000),
+              );
+              await sound.unloadAsync();
+              ttsSound.current = null;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      setIsLoading(false);
+    }
+  };
 
   const handleOptionSelect = (opt: string) => {
     playClickSound();
     if (currentPart?.isEnd || isLoading || isTyping) return;
-    loadNextStep(opt, history, adventureId);
+    loadNextStep(opt, history);
+  };
+
+  const handleRiddleSubmit = () => {
+    playClickSound();
+    if (!riddleInput.trim() || !activeMiniGame) return;
+    if (
+      riddleInput.toLowerCase().trim() ===
+      activeMiniGame.answer.toLowerCase().trim()
+    ) {
+      setActiveMiniGame(null);
+      setIsMiniGameModalVisible(false);
+      loadNextStep(
+        "[SİSTEM: Oyuncu engeli tatlı bir şekilde aştı, hikayeyi romantik ilerlet.]",
+        history,
+      );
+    } else {
+      setRiddleError("Bu cevap kalbini çalmaya yetmedi... Tekrar düşün.");
+    }
   };
 
   return (
@@ -270,7 +290,7 @@ export default function GameScreen() {
       {isLoading && (
         <View style={styles.transitionContainer}>
           <View style={styles.transitionOverlayLayer}>
-            <ActivityIndicator size="large" color="#ff1493" />
+            <ActivityIndicator size="large" color="#FFD700" />
             <Text style={styles.loadingText}>AŞK YAZILIYOR...</Text>
           </View>
         </View>
@@ -279,27 +299,10 @@ export default function GameScreen() {
       {currentPart?.isEnd ? (
         <View style={styles.fullScreenEnd}>
           <ImageBackground
-            source={{
-              uri:
-                currentPart?.endType === "good"
-                  ? "https://images.unsplash.com/photo-1518199266791-5375a83190b7?q=80&w=1080&auto=format&fit=crop"
-                  : "https://images.unsplash.com/photo-1508609349937-5ec4ae374ebf?q=80&w=1080&auto=format&fit=crop",
-            }}
+            source={require("../assets/images/image_0.png")}
             style={{ flex: 1 }}
             resizeMode="cover"
           >
-            {/* İYİ SON VE KÖTÜ SON İÇİN İKİ FARKLI TASARIM */}
-            <View
-              style={[
-                styles.endOverlay,
-                {
-                  backgroundColor:
-                    currentPart?.endType === "good"
-                      ? "rgba(255,20,147,0.3)"
-                      : "rgba(0,0,0,0.8)",
-                },
-              ]}
-            />
             <SafeAreaView style={styles.endSafeArea}>
               <View style={{ alignItems: "center", paddingTop: 20 }}>
                 <View
@@ -321,19 +324,20 @@ export default function GameScreen() {
                   </Text>
                 </View>
               </View>
-              <View style={styles.endContentBottom}>
+
+              <View style={styles.endContentBottomPanel}>
                 {currentPart?.endType === "good" ? (
                   <Heart
-                    color="#ff1493"
+                    color="#FFD700"
                     size={48}
-                    style={{ alignSelf: "center", marginBottom: 10 }}
-                    fill="#ff1493"
+                    style={{ alignSelf: "center", marginBottom: 15 }}
+                    fill="#FFD700"
                   />
                 ) : (
                   <HeartCrack
                     color="#ff4444"
                     size={48}
-                    style={{ alignSelf: "center", marginBottom: 10 }}
+                    style={{ alignSelf: "center", marginBottom: 15 }}
                   />
                 )}
                 <Text
@@ -365,7 +369,7 @@ export default function GameScreen() {
                       <Home
                         color={
                           currentPart?.endType === "good"
-                            ? "#ff1493"
+                            ? "#FFD700"
                             : "#ff4444"
                         }
                         size={16}
@@ -397,7 +401,7 @@ export default function GameScreen() {
                       <RefreshCw
                         color={
                           currentPart?.endType === "good"
-                            ? "#ff1493"
+                            ? "#FFD700"
                             : "#ff4444"
                         }
                         size={16}
@@ -422,20 +426,17 @@ export default function GameScreen() {
         </View>
       ) : (
         <ImageBackground
-          source={{
-            uri: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?q=80&w=1080&auto=format&fit=crop",
-          }}
+          source={require("../assets/images/image_0.png")}
           style={styles.bgImage}
           resizeMode="cover"
         >
-          <View style={styles.overlay} />
           <SafeAreaView
             style={styles.safeArea}
             edges={["top", "left", "right"]}
           >
             <View style={styles.topBar}>
               <TouchableOpacity onPress={goHome} style={styles.iconCircle}>
-                <Home color="#ff1493" size={20} />
+                <Home color="#FFD700" size={20} />
               </TouchableOpacity>
               <View style={styles.badge}>
                 <Text
@@ -449,10 +450,11 @@ export default function GameScreen() {
                 }}
                 style={styles.iconCircle}
               >
-                <Settings color="#ff1493" size={20} />
+                <Settings color="#FFD700" size={20} />
               </TouchableOpacity>
             </View>
 
+            {/* GÖRSEL BOYUTU ÇOK DAHA BÜYÜTÜLDÜ (Ekranın %45'i) */}
             <View style={styles.imageContainer}>
               <Image
                 source={{
@@ -466,7 +468,8 @@ export default function GameScreen() {
               <View style={styles.imageBorder} />
             </View>
 
-            <View style={styles.bottomSection}>
+            <View style={styles.bottomSectionPanel}>
+              {/* METİN ALANI 5 SATIRA SABİTLENDİ */}
               <View style={styles.storyContainer}>
                 <ScrollView
                   ref={scrollViewRef}
@@ -479,28 +482,105 @@ export default function GameScreen() {
                 </ScrollView>
               </View>
 
+              {/* BUTONLAR KÜÇÜLTÜLDÜ VE DAHA ZARİF YAPILDI */}
               <View style={styles.optionsPanel}>
-                {currentPart?.options?.map((opt: string, index: number) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.optionButton,
-                      (isTyping || isLoading) && { opacity: 0.6 },
-                    ]}
-                    onPress={() => handleOptionSelect(opt)}
-                    disabled={isLoading || isTyping}
-                  >
-                    <Text style={styles.optionText}>
-                      {isLoading ? "..." : opt}
-                    </Text>
-                    <Heart color={isTyping ? "#aaa" : "#ff1493"} size={16} />
-                  </TouchableOpacity>
-                ))}
+                {currentPart?.options?.map((opt: string, index: number) => {
+                  const isMiniGameTrigger = activeMiniGame && index === 0;
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.optionButton,
+                        (isTyping || isLoading) && { opacity: 0.6 },
+                        isMiniGameTrigger && styles.miniGameTriggerButton,
+                      ]}
+                      onPress={() => {
+                        if (isMiniGameTrigger) {
+                          playClickSound();
+                          setIsMiniGameModalVisible(true);
+                        } else handleOptionSelect(opt);
+                      }}
+                      disabled={isLoading || isTyping}
+                    >
+                      <Text
+                        style={[
+                          styles.optionText,
+                          isMiniGameTrigger && { color: "#fff" },
+                        ]}
+                      >
+                        {isLoading ? "..." : opt}
+                      </Text>
+                      {isMiniGameTrigger ? (
+                        <Sparkles color="#fff" size={14} />
+                      ) : (
+                        <Heart
+                          color={isTyping ? "#888" : "#FFD700"}
+                          size={14}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           </SafeAreaView>
         </ImageBackground>
       )}
+
+      {/* MİNİ OYUN MODALI */}
+      <Modal
+        visible={isMiniGameModalVisible}
+        animationType="fade"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[styles.modalContent, { height: "auto", paddingBottom: 40 }]}
+          >
+            <TouchableOpacity
+              style={styles.miniGameCloseBtn}
+              onPress={() => {
+                playClickSound();
+                setIsMiniGameModalVisible(false);
+              }}
+            >
+              <X color="#ff1493" size={20} />
+            </TouchableOpacity>
+
+            <View style={{ width: "100%", alignItems: "center" }}>
+              <Heart color="#ff1493" size={32} style={{ marginBottom: 10 }} />
+              <Text style={styles.modalTitleDark}>AŞK FISILTISI</Text>
+              <Text
+                style={[
+                  styles.modalSubtitleDark,
+                  { marginBottom: 20, textAlign: "center" },
+                ]}
+              >
+                {activeMiniGame?.question ||
+                  "Onun kalbini çalacak doğru kelimeyi bul."}
+              </Text>
+              <View style={styles.riddleInputRow}>
+                <TextInput
+                  style={styles.riddleInput}
+                  placeholder="Cevabın..."
+                  placeholderTextColor="#ffb6c1"
+                  value={riddleInput}
+                  onChangeText={setRiddleInput}
+                />
+                <TouchableOpacity
+                  style={styles.riddleSubmitBtn}
+                  onPress={handleRiddleSubmit}
+                >
+                  <Heart color="#fff" size={20} />
+                </TouchableOpacity>
+              </View>
+              {riddleError && (
+                <Text style={styles.riddleErrorText}>{riddleError}</Text>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* AYARLAR MODALI */}
       <Modal
@@ -514,8 +594,10 @@ export default function GameScreen() {
           >
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>AYARLAR</Text>
-                <Text style={styles.modalSubtitle}>Sesi ve hissi ayarla</Text>
+                <Text style={styles.modalTitleDark}>AYARLAR</Text>
+                <Text style={styles.modalSubtitleDark}>
+                  Sesi ve hissi ayarla
+                </Text>
               </View>
               <TouchableOpacity
                 onPress={() => {
@@ -524,7 +606,7 @@ export default function GameScreen() {
                 }}
                 style={styles.modalCloseCircle}
               >
-                <X color="#ff1493" size={20} />
+                <X color="#ff1493" size={22} />
               </TouchableOpacity>
             </View>
 
@@ -546,7 +628,12 @@ export default function GameScreen() {
                     isMusicEnabled && styles.toggleBtnActive,
                   ]}
                 >
-                  <Text style={styles.toggleText}>
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      isMusicEnabled && { color: "#fff" },
+                    ]}
+                  >
                     {isMusicEnabled ? "AÇIK" : "KAPALI"}
                   </Text>
                 </TouchableOpacity>
@@ -559,7 +646,7 @@ export default function GameScreen() {
                 value={musicVolume}
                 disabled={!isMusicEnabled}
                 minimumTrackTintColor="#ff1493"
-                thumbTintColor={isMusicEnabled ? "#ff1493" : "#444"}
+                thumbTintColor={isMusicEnabled ? "#ff1493" : "#888"}
                 onValueChange={async (val) => {
                   setMusicVolume(val);
                   await AsyncStorage.setItem("musicVolume", val.toString());
@@ -585,7 +672,12 @@ export default function GameScreen() {
                     isTtsEnabled && styles.toggleBtnActive,
                   ]}
                 >
-                  <Text style={styles.toggleText}>
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      isTtsEnabled && { color: "#fff" },
+                    ]}
+                  >
                     {isTtsEnabled ? "AÇIK" : "KAPALI"}
                   </Text>
                 </TouchableOpacity>
@@ -598,7 +690,7 @@ export default function GameScreen() {
                 value={ttsVolume}
                 disabled={!isTtsEnabled}
                 minimumTrackTintColor="#ff1493"
-                thumbTintColor={isTtsEnabled ? "#ff1493" : "#444"}
+                thumbTintColor={isTtsEnabled ? "#ff1493" : "#888"}
                 onValueChange={async (val) => {
                   setTtsVolume(val);
                   await AsyncStorage.setItem("ttsVolume", val.toString());
@@ -624,7 +716,12 @@ export default function GameScreen() {
                     isSfxEnabled && styles.toggleBtnActive,
                   ]}
                 >
-                  <Text style={styles.toggleText}>
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      isSfxEnabled && { color: "#fff" },
+                    ]}
+                  >
                     {isSfxEnabled ? "AÇIK" : "KAPALI"}
                   </Text>
                 </TouchableOpacity>
@@ -637,7 +734,7 @@ export default function GameScreen() {
                 value={sfxVolume}
                 disabled={!isSfxEnabled}
                 minimumTrackTintColor="#ff1493"
-                thumbTintColor={isSfxEnabled ? "#ff1493" : "#444"}
+                thumbTintColor={isSfxEnabled ? "#ff1493" : "#888"}
                 onValueChange={async (val) => {
                   setSfxVolume(val);
                   await AsyncStorage.setItem("sfxVolume", val.toString());
@@ -652,22 +749,18 @@ export default function GameScreen() {
 }
 
 const styles = StyleSheet.create({
-  mainWrapper: { flex: 1, backgroundColor: "#fff0f5" },
+  mainWrapper: { flex: 1, backgroundColor: "#1a0b12" },
   bgImage: { flex: 1 },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,240,245,0.6)",
-  },
   transitionContainer: { ...StyleSheet.absoluteFillObject, zIndex: 999 },
   transitionOverlayLayer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: "#1a0b12",
     justifyContent: "center",
     alignItems: "center",
   },
   safeArea: { flex: 1 },
   loadingText: {
-    color: "#ff1493",
+    color: "#FFD700",
     marginTop: 20,
     letterSpacing: 2,
     fontSize: 14,
@@ -677,110 +770,130 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 15,
+    paddingHorizontal: 15,
+    paddingTop: 10,
   },
   iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#fff",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(30, 0, 10, 0.6)",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#ff1493",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,
+    borderWidth: 1,
+    borderColor: "#FFD700",
   },
   badge: {
-    backgroundColor: "rgba(255,20,147,0.1)",
-    paddingHorizontal: 15,
-    paddingVertical: 6,
-    borderRadius: 20,
+    backgroundColor: "rgba(255, 215, 0, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 15,
     borderWidth: 1,
-    borderColor: "rgba(255,20,147,0.3)",
+    borderColor: "rgba(255, 215, 0, 0.3)",
   },
   badgeText: {
-    color: "#ff1493",
-    fontSize: 12,
+    color: "#FFD700",
+    fontSize: 11,
     fontWeight: "bold",
     letterSpacing: 1,
   },
+
+  // GÖRSEL BOYUTU EKRANIN %45'İNE ÇIKARILDI (Daha Önce 0.35 idi)
   imageContainer: {
-    flex: 1,
-    width: width * 0.9,
+    width: width * 0.88,
+    height: height * 0.45,
     alignSelf: "center",
     borderRadius: 20,
     overflow: "hidden",
-    marginVertical: 15,
-    shadowColor: "#ff1493",
+    marginVertical: 10,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 8,
+    flexShrink: 0,
   },
   aiImage: { width: "100%", height: "100%" },
   imageBorder: {
     ...StyleSheet.absoluteFillObject,
     borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.5)",
+    borderColor: "rgba(255,255,255,0.4)",
     borderRadius: 20,
   },
-  bottomSection: {
+
+  bottomSectionPanel: {
+    flex: 1,
     width: "100%",
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(20, 5, 10, 0.65)",
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
-    paddingTop: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -5 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 10,
+    paddingTop: 15,
+    borderWidth: 1.5,
+    borderColor: "#FFD700",
+    borderBottomWidth: 0,
   },
-  storyContainer: { height: 130, paddingHorizontal: 25 },
+
+  // METİN KUTUSU 5 SATIR (110px) OLARAK SABİTLENDİ
+  storyContainer: { height: 110, paddingHorizontal: 20, marginBottom: 5 },
   storyText: {
-    color: "#444",
-    fontSize: 16,
+    color: "#fff",
+    fontSize: 15,
+    lineHeight: 22,
     textAlign: "center",
     fontStyle: "italic",
-    lineHeight: 24,
     fontWeight: "500",
+    textShadowColor: "#000",
+    textShadowRadius: 4,
   },
-  optionsPanel: { paddingHorizontal: 20, paddingBottom: 20 },
+
+  // BUTONLAR İNCELTİLDİ VE DAHA KİBAR HALE GELDİ
+  optionsPanel: { paddingHorizontal: 15, paddingBottom: 15 },
   optionButton: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#fff0f5",
-    padding: 15,
-    borderRadius: 15,
-    marginBottom: 10,
+    backgroundColor: "rgba(255, 215, 0, 0.12)",
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 6,
     borderWidth: 1,
-    borderColor: "#ffb6c1",
+    borderColor: "rgba(255, 215, 0, 0.3)",
   },
-  optionText: { color: "#d21f3c", fontSize: 15, flex: 1, fontWeight: "bold" },
-  fullScreenEnd: { flex: 1, backgroundColor: "#fff0f5" },
-  endOverlay: { ...StyleSheet.absoluteFillObject },
+  miniGameTriggerButton: {
+    backgroundColor: "rgba(255, 20, 147, 0.3)",
+    borderColor: "#ff1493",
+  },
+  optionText: { color: "#FFD700", fontSize: 13, flex: 1, fontWeight: "bold" },
+
+  fullScreenEnd: { flex: 1, backgroundColor: "#1a0b12" },
   endSafeArea: { flex: 1 },
-  endContentBottom: {
+  endContentBottomPanel: {
     flex: 1,
     justifyContent: "flex-end",
     padding: 25,
     paddingBottom: 50,
+    backgroundColor: "rgba(20, 5, 10, 0.7)",
+    borderRadius: 25,
+    margin: 15,
+    borderWidth: 2,
+    borderColor: "#FFD700",
   },
   endTitle: {
-    fontSize: 36,
+    fontSize: 32,
     textAlign: "center",
     marginBottom: 15,
     fontWeight: "bold",
   },
   endTitleBad: { color: "#ff4444" },
-  endTitleGood: { color: "#ff1493" },
+  endTitleGood: { color: "#FFD700" },
   endDescriptionText: {
-    fontSize: 18,
-    lineHeight: 28,
+    fontSize: 16,
+    lineHeight: 26,
     textAlign: "center",
     fontStyle: "italic",
     marginBottom: 35,
@@ -794,78 +907,104 @@ const styles = StyleSheet.create({
   },
   gothicButton: {
     flex: 1,
-    height: 55,
+    height: 50,
     marginHorizontal: 8,
-    borderRadius: 25,
-    backgroundColor: "#fff0f5",
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 20, 147, 0.15)",
     borderWidth: 1.5,
-    borderColor: "#ffb6c1",
+    borderColor: "#ff1493",
     justifyContent: "center",
     alignItems: "center",
   },
   gothicButtonInner: { flexDirection: "row", alignItems: "center" },
-  gothicButtonText: { color: "#ff1493", fontWeight: "bold", fontSize: 14 },
+  gothicButtonText: { color: "#fff", fontWeight: "bold", fontSize: 13 },
+
+  miniGameCloseBtn: { position: "absolute", top: 15, right: 15, zIndex: 10 },
+  riddleInputRow: { flexDirection: "row", width: "100%", alignItems: "center" },
+  riddleInput: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#FFD700",
+    marginRight: 10,
+    color: "#fff",
+  },
+  riddleSubmitBtn: {
+    backgroundColor: "#ff1493",
+    padding: 12,
+    borderRadius: 10,
+  },
+  riddleErrorText: { color: "#ff4444", marginTop: 15, fontWeight: "bold" },
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.7)",
     justifyContent: "flex-end",
   },
   modalContent: {
     width: width,
-    backgroundColor: "#fff",
+    backgroundColor: "#1a0b12",
     borderTopLeftRadius: 35,
     borderTopRightRadius: 35,
     padding: 25,
-    borderWidth: 1.5,
-    borderColor: "#ffb6c1",
+    borderWidth: 2,
+    borderColor: "#FFD700",
+    borderBottomWidth: 0,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 20,
   },
-  modalTitle: { color: "#ff1493", fontSize: 24, fontWeight: "bold" },
-  modalSubtitle: { color: "#777", fontSize: 14 },
+  modalTitleDark: {
+    color: "#FFD700",
+    fontSize: 26,
+    fontWeight: "bold",
+    fontFamily: Platform.OS === "ios" ? "SnellRoundhand" : "serif",
+    letterSpacing: 1,
+  },
+  modalSubtitleDark: { color: "#aaa", fontSize: 14, fontStyle: "italic" },
   modalCloseCircle: {
-    width: 40,
-    height: 40,
-    backgroundColor: "#fff0f5",
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    backgroundColor: "rgba(255, 20, 147, 0.1)",
+    borderRadius: 22,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#ffb6c1",
+    borderColor: "#ff1493",
   },
 
   settingRowContainer: {
-    marginVertical: 10,
-    paddingBottom: 15,
+    marginVertical: 12,
+    paddingBottom: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "#ffe4e1",
+    borderBottomColor: "#331520",
   },
   settingTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 5,
+    marginBottom: 8,
   },
   slider: { width: "100%", height: 40 },
-  settingLabel: { color: "#333", fontSize: 18, fontWeight: "bold" },
-  settingSubLabel: { color: "#777", fontSize: 12, marginTop: 4 },
+  settingLabel: { color: "#FFD700", fontSize: 18, fontWeight: "bold" },
+  settingSubLabel: { color: "#aaa", fontSize: 13, marginTop: 4 },
   toggleBtn: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "#fff0f5",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "rgba(0,0,0,0.4)",
     borderWidth: 1,
-    borderColor: "#ffb6c1",
-    minWidth: 80,
+    borderColor: "#555",
+    minWidth: 85,
     alignItems: "center",
   },
   toggleBtnActive: {
-    backgroundColor: "rgba(255,20,147,0.15)",
+    backgroundColor: "rgba(255, 20, 147, 0.2)",
     borderColor: "#ff1493",
   },
-  toggleText: { color: "#ff1493", fontWeight: "bold" },
+  toggleText: { color: "#777", fontWeight: "bold" },
 });

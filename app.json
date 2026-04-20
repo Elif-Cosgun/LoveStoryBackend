@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "OLUMCUL SECIM",
-    "slug": "OLUMCUL SECIM",
+    "name": "LOVE STORY",
+    "slug": "LOVE STORY",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon1.png",
+    "icon": "./assets/images/iconn.png",
     "scheme": "aistorygame",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -15,7 +15,7 @@
       "package": "com.elif.aistorygame",
       "adaptiveIcon": {
         "backgroundColor": "#000000",
-        "foregroundImage": "./assets/images/icon1.png"
+        "foregroundImage": "./assets/images/iconn.png"
       },
       "backgroundColor": "#000000",
       "permissions": ["INTERNET", "INTERNET"],
@@ -30,14 +30,14 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/iconn.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/icon1.png",
+          "image": "./assets/images/iconn.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#000000"

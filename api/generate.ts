@@ -36,32 +36,25 @@ export default async function handler(req: any, res: any) {
     - SON SEÇİM: ${choice || "Başlangıç"}
     - TEMPO: ${duration}
 
-    ### KURAL 1: İÇERİK GELİŞTİRME VE SINIRLAR (ÇOK ÖNEMLİ):
-    - Eğer "OYUNCUNUN GİRDİĞİ TEMA" çok kısa veya sığ ise (örn: 'kafe', 'okul', 'eski sevgili'), bunu derhal 3-4 cümlelik, edebi, detaylı ve duygu yüklü bir hikaye evrenine dönüştür.
-    - SINIRLAR: Bu bir romantik/dram kurgusudur. Cinsel içerik (NSFW), aşırı şiddet veya 18+ uygunsuz detaylar KESİNLİKLE YASAKTIR. Duygusal çekim, el tutuşma, sarılma, öpüşme, kalp kırıklığı veya dram seviyesinde kal.
+    ### KURAL 1: İÇERİK GELİŞTİRME VE SINIRLAR:
+    - Orijinal, edebi ve detaylı kurgula.
+    - Cinsel içerik (NSFW), aşırı şiddet veya 18+ uygunsuz detaylar KESİNLİKLE YASAKTIR. Romantizm ve duygusal derinlikte kal.
 
     ### KURAL 2: GÖRSEL VE HİKAYE TUTARLILIĞI:
-    - Oyuncuyu asla aynı döngüde tutma. Her yeni adım hikayeyi, mekanı veya duyguyu bir sonrakine taşımalıdır.
-    - 'imagePrompt' oluştururken partnerin (aşk ilgisinin) fiziksel özelliklerini (saç rengi, göz, stil) ilk sahnede nasıl belirlediysen sonraki tüm sahnelerde AYNI tut.
+    - Oyuncuyu aynı döngüde tutma. Hikaye ilerlesin.
+    - 'imagePrompt' üretirken karakterlerin fiziksel özelliklerini KORU.
     
-    ### KURAL 3: PARÇALI SESLENDİRME (DİYALOG):
-    - Karakter konuşmaları tırnak (" ") içinde, senin anlatımın tırnak dışında olmalı.
-    - Anlatıcı (İç ses/Betimleme) için: "narrator_soft" veya "narrator_dramatic"
-    - Kadın karakterler için: "woman_sweet" veya "woman_mature"
-    - Erkek karakterler için: "man_charming" veya "man_deep"
-    - İstenmeyen kişi/Rakip için: "rival"
+    ### KURAL 3: SESLENDİRME:
+    - Anlatıcı için: "narrator_soft" veya "narrator_dramatic"
+    - Kadın: "woman_sweet", Erkek: "man_charming" veya "man_deep"
     
     ### KURAL 4: SEÇENEKLER VE FİNAL:
-    - DAİMA tam olarak 4 farklı seçenek sun (seçenekler hikayeyi farklı duygusal yönlere çekmeli: cesur, utangaç, şüpheci, romantik).
-    - Hikaye sonlandığında "isEnd": true olmalı. 
-    - Mutlu sonlar (Evlilik, itiraf, büyük aşk) için "endType": "good"
-    - Kötü/Buruk sonlar (Ayrılık, reddedilme, arkadaş kalma) için "endType": "bad"
+    - DAİMA tam olarak 4 farklı seçenek sun.
+    - Bitişlerde "isEnd": true olmalı. Mutlu son "good", kötü son "bad" olmalı.
 
-    ### KURAL 5: JSON FORMATI KESİN ZORUNLULUK:
+    ### JSON FORMATI:
     {
-      "parts": [
-        { "text": "Metin...", "voiceType": "narrator_soft" }
-      ],
+      "parts": [ { "text": "Metin...", "voiceType": "narrator_soft" } ],
       "options": ["seçenek 1", "seçenek 2", "seçenek 3", "seçenek 4"],
       "imagePrompt": "A highly detailed, romantic cinematic digital painting of...",
       "isEnd": false,
@@ -79,7 +72,6 @@ export default async function handler(req: any, res: any) {
 
     const result = JSON.parse(completion.choices[0].message.content || "{}");
 
-    // Görsel Üretimi (DALL-E 3)
     let finalImageUrl =
       "https://via.placeholder.com/1024x1024?text=Romantik+Sahne";
     try {
@@ -105,13 +97,18 @@ export default async function handler(req: any, res: any) {
       final_text: result.isEnd ? combinedText : "",
       user_id: userId,
     };
-    let finalAdventureId = adventureId;
 
-    if (adventureId) {
+    // ID YÖNETİMİ (DUPLİKE ÖNLEME KISMI)
+    let finalAdventureId =
+      adventureId && adventureId !== "null" && adventureId !== "undefined"
+        ? adventureId
+        : null;
+
+    if (finalAdventureId) {
       await supabase
         .from("adventures")
         .update(upsertData)
-        .eq("id", adventureId);
+        .eq("id", finalAdventureId);
     } else {
       const { data: newData } = await supabase
         .from("adventures")
@@ -129,11 +126,8 @@ export default async function handler(req: any, res: any) {
         adventureId: finalAdventureId,
       });
   } catch (error: any) {
-    if (error.status === 401) {
-      return res
-        .status(401)
-        .json({ error: "OpenAI API Anahtarı geçersiz veya bakiye yetersiz." });
-    }
+    if (error.status === 401)
+      return res.status(401).json({ error: "OpenAI API Anahtarı hatası." });
     return res.status(500).json({ error: error.message });
   }
 }
