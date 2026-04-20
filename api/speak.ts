@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
   const VOICES = {
     narrator: "pFZP5JQG7iQjIQuC4Bku", // Sakin dış ses
-    man_charming: "Ongxzjm6NAJamxlPiP4z", // Çekici erkek
+    man_charming: "GZjSCLkzCKh5lsmbn2VO", // Çekici erkek
     man_deep: "Ongxzjm6NAJamxlPiP4z", // Olgun erkek
     woman_sweet: "pPdl9cQBQq4p6mRkZy2Z", // Tatlı kadın
     woman_mature: "54Cze5LrTSyLgbO6Fhlc", // Olgun/Rakip kadın
