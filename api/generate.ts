@@ -25,6 +25,17 @@ export default async function handler(req: any, res: any) {
 
   const prompt = `
     Sen modern romantik dram ve Jane Austen derinliğinde usta bir yazarsın. 
+    Hikayeyi yazarken karakterlerin duygularını, iç çatışmalarını ve ilişkilerini derinlemesine keşfet.
+    Her adımda hikayeyi ilerlet, yeni bir gelişme, yeni bir duygu, yeni bir mekan veya yeni bir karakter ekle. 
+    Mantıklı ve sürükleyici bir hikaye oluştur, aynı mekanda ve duyguda takılıp kalma.
+    Sunulan seçenekler de hikayeyi ilerletmeli, birbirinden farklı duygular ve sonuçlar içermeli.
+    Hikayedeki kararkterler aynı kişiden devam ediyorsa hep onu aynı kişi olarak seslendir ve görüntüsünü de aynı şekilde oluştur. Eğer yeni bir karakter gelirse ona uygun yeni bir ses ve görsel oluştur.
+    ADIMLARIN SONUNA GELDİĞİNDE HİKAYEYİ MUTLU SONLA MI BİTİRCEKSİN YOKSA TRAJİK BİR SONLA MI BİTİRCEKSİN KARAR VER VE ONA GÖRE HİKAYEYİ ŞEKİLLENDİR. Eğer ADIM >= ${targetSteps} ise kesinlikle "isEnd": true yap ve hikayeyi endType: "good" veya "bad" olarak bitir.
+    Hikayede bir mekan, obje veya kişi geçtiyse ve başka sahnede de aynı mekan, obje veya kişi varsa bunların görsel ve ses özellikleri aynı olmalı. Örneğin hikayede "gül" objesi geçtiyse ve sonraki adımlarda da "gül" objesi geçerse her seferinde aynı görsel ve aynı ses tonu kullanılmalı. Eğer yeni bir karakter gelirse ona uygun yeni bir ses ve görsel oluştur.
+    Hikayede bazı kritik noktalar olmalı, örneğin karakterlerin birbirlerine itiraf ettikleri duygular, büyük sürprizler, önemli karar anları gibi. Bu kritik noktalarda hikaye beklenmedik bir şekilde ilerlemeli ve okuyucunun ilgisini yüksek tutmalı.
+    Kritik anlarda oyuncuya kritik seçimler sun. Bu kritik seçimler hikayenin gidişatını büyük ölçüde değiştirebilmeli ve farklı sonuçlara yol açabilmeli. Örneğin karakterlerden biri diğerine aşkını itiraf edebilir veya büyük bir sırrı ortaya çıkarabilir, bu tür anlarda oyuncuya önemli seçimler sun.
+    Hikaye tekdüzelikten uzak olsun. Sadece iki karakter arasınnda geçmesin başka karakterler de dahil olabilir. Örneğin karakterlerin arkadaşları veya aile üyeleri hikayeye dahil olabilir ve hikayeyi zenginleştirebilir. Her adımda yeni bir gelişme, yeni bir duygu, yeni bir mekan veya yeni bir karakter eklemeye çalış.
+    Hikayeyi yazarken karakterlerin duygularını, iç çatışmalarını ve ilişkilerini derinlemesine keşfet. Karakterlerin birbirlerine karşı hissettikleri duyguları detaylı bir şekilde anlat. Örneğin karakterlerden biri diğerine karşı derin bir aşk besliyor olabilir ama bunu itiraf etmekte zorlanıyor olabilir, bu tür durumlarda karakterlerin iç dünyasını ve duygusal çatışmalarını detaylı bir şekilde anlat.
     TEMA: ${theme} | ADIM: ${currentStep}/${targetSteps} | SON SEÇİM: ${choice || "Başlangıç"}
 
     ### KESİN SESLENDİRME VE PARÇALAMA KURALI:
@@ -37,7 +48,7 @@ export default async function handler(req: any, res: any) {
 
     ### HİKAYE VE SEÇENEK KURALLARI:
     - Seçeneklerin başına ASLA "Cesur:", "Utangaç:" gibi etiketler yazma. Sadece metni yaz.
-    - Hikaye sürekli ilerlemeli, aynı mekanda ve duyguda takılıp kalma.
+    - Hikaye sürekli ilerlemeli, aynı mekanda ve duyguda takılıp kalma. Her adımda yeni bir gelişme, yeni bir duygu, yeni bir mekan veya yeni bir karakter eklemeye çalış.
     - Eğer ADIM >= ${targetSteps} ise kesinlikle "isEnd": true yap ve hikayeyi endType: "good" veya "bad" olarak bitir.
 
     ### SES KADROSU:
@@ -103,14 +114,12 @@ export default async function handler(req: any, res: any) {
       if (newData && newData.length > 0) parsedId = newData[0].id;
     }
 
-    return res
-      .status(200)
-      .json({
-        ...result,
-        text: combinedText,
-        imageUrl: finalImageUrl,
-        adventureId: parsedId,
-      });
+    return res.status(200).json({
+      ...result,
+      text: combinedText,
+      imageUrl: finalImageUrl,
+      adventureId: parsedId,
+    });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
