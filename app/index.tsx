@@ -33,8 +33,21 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
+import {
+  AdEventType,
+  InterstitialAd,
+  TestIds,
+} from "react-native-google-mobile-ads";
+
 const { width, height } = Dimensions.get("window");
 SplashScreen.preventAutoHideAsync();
+
+const adUnitId = __DEV__
+  ? TestIds.INTERSTITIAL
+  : "ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy";
+const interstitial = InterstitialAd.createForAdRequest(adUnitId, {
+  requestNonPersonalizedAdsOnly: true,
+});
 
 const exampleThemes = [
   {
@@ -67,6 +80,156 @@ const exampleThemes = [
     prompt:
       "Doğu Ekspresinin lüks bir kompartımanında, gözlerini senden ayırmayan tehlikeli derecede çekici bir yolcu.",
   },
+  {
+    id: 6,
+    title: "Yasak Dans",
+    prompt:
+      "19. yüzyıl İngiltere'sinde görkemli bir baloda, ailenin asla onaylamayacağı gizemli bir Dük ile edilen o ilk tehlikeli dans.",
+  },
+  {
+    id: 7,
+    title: "Sahte Nişanlı",
+    prompt:
+      "Aileni ikna etmek için bir süreliğine nişanlı rolü yapmayı kabul ettiğin o soğuk ve mesafeli yabancıyla gerçek hislerin başlaması.",
+  },
+  {
+    id: 8,
+    title: "Tozlu Raflar",
+    prompt:
+      "Eski bir sahafta, yıllardır aradığın kitabın tek kopyasına aynı anda uzandığın o büyüleyici ve entelektüel yabancı.",
+  },
+  {
+    id: 9,
+    title: "Gizli Koruma",
+    prompt:
+      "Hayatın tehlikedeyken seni koruması için tutulan, sadece işine odaklanan ama bakışlarıyla kalbini eriten o sert koruma.",
+  },
+  {
+    id: 10,
+    title: "Mektup Arkadaşı",
+    prompt:
+      "Yıllardır sadece kağıt üzerinde tanıdığın ruh eşinle, gün batımında bir iskelede ilk kez yüz yüze geleceğin o an.",
+  },
+  {
+    id: 11,
+    title: "Fırtınada Sığınak",
+    prompt:
+      "Büyük bir fırtına sırasında dağ evinde mahsur kaldığın, geçmişinden gelen ve hala unutamadığın o büyük pişmanlığın.",
+  },
+  {
+    id: 12,
+    title: "Sahne Işıkları",
+    prompt:
+      "Bir tiyatro oyununda başrolü paylaştığın, sahnede rol gereği aşık olduğun partnerine perde arkasında gerçekten kapılman.",
+  },
+  {
+    id: 13,
+    title: "Rıhtımda Veda",
+    prompt:
+      "Savaşa ya da uzak bir ülkeye gitmek üzere olan çocukluk aşkınla, rıhtımda geçireceğin o son ve en hüzünlü 1 saat.",
+  },
+  {
+    id: 14,
+    title: "Yıldız Müzisyen",
+    prompt:
+      "Dünyaca ünlü, hayran olduğun o rock yıldızının konser sonrası kuliste tesadüfen seninle dertleşmeye başlaması.",
+  },
+  {
+    id: 15,
+    title: "Mutfakta Aşk",
+    prompt:
+      "Aşçılık kursunda sürekli çekiştiğin, senin tariflerini eleştiren ama elleri ellerine değdiğinde dünyayı durduran o yetenekli şef.",
+  },
+  {
+    id: 16,
+    title: "Zaman Yolcusu",
+    prompt:
+      "Bir müzede sergilenen 100 yıllık bir fotoğrafta kendine tıpatıp benzeyen birini görmen ve o gece fotoğrafın sahibiyle rüyanda konuşmaya başlaman.",
+  },
+  {
+    id: 17,
+    title: "Maskeli Balo",
+    prompt:
+      "Venedik'te kimsenin birbirini tanımadığı bir maskeli baloda, tüm gece dans ettiğin o gizemli yabancının maskesi düştüğünde gördüğün şoke edici yüz.",
+  },
+  {
+    id: 18,
+    title: "Yıldızlararası",
+    prompt:
+      "Dünya'dan milyonlarca ışık yılı uzaktaki bir uzay istasyonunda, görevin gereği uyanık kalan tek partnerinle sonsuz boşluğa karşı filizlenen aşk.",
+  },
+  {
+    id: 19,
+    title: "Kayıp Hafıza",
+    prompt:
+      "Bir kaza sonrası uyandığında seni tanıyan ama senin hiç hatırlamadığın o büyüleyici kişinin, aslında senin en büyük düşmanın olduğunu öğrenmen.",
+  },
+  {
+    id: 20,
+    title: "Ege Esintisi",
+    prompt:
+      "Miras kalan eski bir zeytinliği satmak için gittiğin küçük bir sahil kasabasında, inatçı ama bir o kadar çekici yerel bir balıkçıyla tanışmak.",
+  },
+  {
+    id: 21,
+    title: "Kış Güneşi",
+    prompt:
+      "Lapa lapa kar yağan bir kayak merkezinde, telesiyejde mahsur kaldığın o bir saat boyunca hayatının aşkıyla yaptığın o derin sohbet.",
+  },
+  {
+    id: 22,
+    title: "Gizli Kimlik",
+    prompt:
+      "Sıradan bir garson olduğunu sandığın kişinin aslında şehre gizlice gelen bir veliaht prens olduğunu, seni saraydaki baloya davet ettiğinde anlaman.",
+  },
+  {
+    id: 23,
+    title: "Gece Yarısı Kitapçısı",
+    prompt:
+      "Sadece gece yarısından sonra açılan efsunlu bir kitapçıda, okuduğun kitabın kahramanı olduğunu iddia eden o tuhaf ve etkileyici yabancı.",
+  },
+  {
+    id: 24,
+    title: "Fotoğrafın Arkası",
+    prompt:
+      "Bit pazarından aldığın eski bir fotoğraf makinesinin içinden çıkan tab edilmemiş filmde, senin hiç gitmediğin bir yerde çekilmiş çocukluk fotoğrafın.",
+  },
+  {
+    id: 25,
+    title: "Antik Sırlar",
+    prompt:
+      "Mısır'da kayıp bir tapınağı keşfederken mahsur kaldığın o inatçı ve yakışıklı arkeologla, meşale ışığında başlayan hayatta kalma mücadelesi.",
+  },
+  {
+    id: 26,
+    title: "Tozlu Mektuplar",
+    prompt:
+      "Tavan arasında bulduğun 1950'lerden kalma aşk mektuplarının izini sürerken, mektupları yazan adamın aynı ismi taşıyan büyüleyici torunuyla tanışman.",
+  },
+  {
+    id: 27,
+    title: "Çatı Katı",
+    prompt:
+      "Londra'da fırtınalı bir gecede, ortak bir sanat atölyesini paylaştığın o sessiz ama derin bakışlı ressamın senin portreni gizlice çizdiğini fark etmen.",
+  },
+  {
+    id: 28,
+    title: "Fener Bekçisi",
+    prompt:
+      "Issız bir adada deniz feneri bekçiliği yaparken, büyük bir fırtına sonrası kıyıya vuran gizemli ve yaralı bir yabancıyı kurtarıp eve alman.",
+  },
+  {
+    id: 29,
+    title: "Düğün Telaşı",
+    prompt:
+      "En yakın arkadaşının düğününde nedimeyken, sürekli tartıştığın o ukala sağdıçla tören sırasında gizli bir bahçede kilitli kalmanız.",
+  },
+  {
+    id: 30,
+    title: "Gece Mavisi",
+    prompt:
+      "Şehrin en yüksek binasının çatısında, herkes içeride partilerken senin gibi kalabalıktan kaçan o melankolik yabancıyla şehri izleyip dertleşmek.",
+  },
 ];
 
 export default function HomeScreen() {
@@ -91,6 +254,38 @@ export default function HomeScreen() {
   const [sfxVolume, setSfxVolume] = useState(1.0);
 
   const bgmSound = useRef<Audio.Sound | null>(null);
+
+  const [isAdLoaded, setIsAdLoaded] = useState(false);
+  const [isAdPlaying, setIsAdPlaying] = useState(false);
+  const pendingNavigationRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const unsubscribeLoaded = interstitial.addAdEventListener(
+      AdEventType.LOADED,
+      () => {
+        setIsAdLoaded(true);
+      },
+    );
+    const unsubscribeClosed = interstitial.addAdEventListener(
+      AdEventType.CLOSED,
+      () => {
+        setIsAdLoaded(false);
+        setIsAdPlaying(false);
+        interstitial.load();
+        if (pendingNavigationRef.current) {
+          pendingNavigationRef.current();
+          pendingNavigationRef.current = null;
+        }
+      },
+    );
+
+    interstitial.load();
+
+    return () => {
+      unsubscribeLoaded();
+      unsubscribeClosed();
+    };
+  }, []);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -187,20 +382,30 @@ export default function HomeScreen() {
     }
     if (bgmSound.current) await bgmSound.current.stopAsync();
 
-    router.push({
-      pathname: "/game",
-      params: {
-        theme: theme.trim(),
-        duration,
-        userId: userId,
-        initialMusic: isMusicEnabled ? "true" : "false",
-        initialTts: isTtsEnabled ? "true" : "false",
-        initialSfx: isSfxEnabled ? "true" : "false",
-        musicVolume: musicVolume.toString(),
-        ttsVolume: ttsVolume.toString(),
-        sfxVolume: sfxVolume.toString(),
-      },
-    });
+    const navigateToGame = () => {
+      router.push({
+        pathname: "/game",
+        params: {
+          theme: theme.trim(),
+          duration,
+          userId: userId,
+          initialMusic: isMusicEnabled ? "true" : "false",
+          initialTts: isTtsEnabled ? "true" : "false",
+          initialSfx: isSfxEnabled ? "true" : "false",
+          musicVolume: musicVolume.toString(),
+          ttsVolume: ttsVolume.toString(),
+          sfxVolume: sfxVolume.toString(),
+        },
+      });
+    };
+
+    if (isAdLoaded) {
+      setIsAdPlaying(true);
+      pendingNavigationRef.current = navigateToGame;
+      interstitial.show();
+    } else {
+      navigateToGame();
+    }
   };
 
   const openHistory = async () => {
@@ -242,12 +447,14 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaProvider style={styles.mainWrapper}>
+      {isAdPlaying && <View style={styles.blackScreenOverlay} />}
+      <StatusBar style="light" hidden={isAdPlaying} />
+
       <ImageBackground
         source={require("../assets/images/image_0.png")}
         style={styles.bgImage}
         resizeMode="cover"
       >
-        <StatusBar style="light" />
         <View style={styles.overlay} />
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.topIconBar}>
@@ -364,7 +571,6 @@ export default function HomeScreen() {
           </KeyboardAvoidingView>
         </SafeAreaView>
 
-        {/* UYARI MODALI */}
         <Modal visible={isAlertVisible} animationType="fade" transparent={true}>
           <View style={styles.modalOverlayCen}>
             <View style={styles.customAlertBox}>
@@ -387,7 +593,6 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
-        {/* GEÇMİŞ MODALI */}
         <Modal
           visible={isHistoryVisible}
           animationType="slide"
@@ -476,22 +681,33 @@ export default function HomeScreen() {
                         onPress={() => {
                           playClickSound();
                           setIsHistoryVisible(false);
-                          router.push({
-                            pathname: "/game",
-                            params: {
-                              theme: item.theme,
-                              duration: "medium",
-                              adventureId: item.id,
-                              resumedHistory: JSON.stringify(item.history),
-                              userId,
-                              initialMusic: isMusicEnabled ? "true" : "false",
-                              initialSfx: isSfxEnabled ? "true" : "false",
-                              initialTts: isTtsEnabled ? "true" : "false",
-                              musicVolume: musicVolume.toString(),
-                              ttsVolume: ttsVolume.toString(),
-                              sfxVolume: sfxVolume.toString(),
-                            },
-                          });
+
+                          const navigateToGame = () => {
+                            router.push({
+                              pathname: "/game",
+                              params: {
+                                theme: item.theme,
+                                duration: "medium",
+                                adventureId: item.id,
+                                resumedHistory: JSON.stringify(item.history),
+                                userId,
+                                initialMusic: isMusicEnabled ? "true" : "false",
+                                initialSfx: isSfxEnabled ? "true" : "false",
+                                initialTts: isTtsEnabled ? "true" : "false",
+                                musicVolume: musicVolume.toString(),
+                                ttsVolume: ttsVolume.toString(),
+                                sfxVolume: sfxVolume.toString(),
+                              },
+                            });
+                          };
+
+                          if (isAdLoaded) {
+                            setIsAdPlaying(true);
+                            pendingNavigationRef.current = navigateToGame;
+                            interstitial.show();
+                          } else {
+                            navigateToGame();
+                          }
                         }}
                       >
                         <View style={styles.advContent}>
@@ -536,7 +752,6 @@ export default function HomeScreen() {
           </View>
         </Modal>
 
-        {/* AYARLAR MODALI */}
         <Modal
           visible={isSettingsVisible}
           animationType="fade"
@@ -717,6 +932,11 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: "#1a0b12" },
+  blackScreenOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000",
+    zIndex: 99999,
+  },
   bgImage: { flex: 1 },
   overlay: {
     ...StyleSheet.absoluteFillObject,

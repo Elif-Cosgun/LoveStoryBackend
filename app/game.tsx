@@ -2,13 +2,7 @@ import Slider from "@react-native-community/slider";
 import { Audio } from "expo-av";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import {
-  Heart,
-  HeartCrack,
-  Home,
-  Settings,
-  X
-} from "lucide-react-native";
+import { Heart, HeartCrack, Home, Settings, X } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -20,13 +14,26 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchTTS } from "../services/elevenlabs";
 import { fetchStoryStep } from "../services/gemini";
 
+import {
+  AdEventType,
+  InterstitialAd,
+  TestIds,
+} from "react-native-google-mobile-ads";
+
 const { width, height } = Dimensions.get("window");
+
+const adUnitId = __DEV__
+  ? TestIds.INTERSTITIAL
+  : "ca-app-pub-xxxxxxxxxxxxxxxx/yyyyyyyyyy";
+const interstitial = InterstitialAd.createForAdRequest(adUnitId, {
+  requestNonPersonalizedAdsOnly: true,
+});
 
 export default function GameScreen() {
   const router = useRouter();
@@ -74,6 +81,41 @@ export default function GameScreen() {
     params.resumedHistory ? JSON.parse(params.resumedHistory as string) : [],
   );
   const hasStarted = useRef(false);
+
+  // REKLAM STATE'LERİ
+  const [isAdLoaded, setIsAdLoaded] = useState(false);
+  const [isAdPlaying, setIsAdPlaying] = useState(false);
+  const resolveAdCloseRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const unsubscribeLoaded = interstitial.addAdEventListener(
+      AdEventType.LOADED,
+      () => {
+        setIsAdLoaded(true);
+      },
+    );
+    const unsubscribeClosed = interstitial.addAdEventListener(
+      AdEventType.CLOSED,
+      () => {
+        setIsAdLoaded(false);
+        setIsAdPlaying(false);
+        interstitial.load();
+
+        // Reklam kapandı, paralel çalışan veri indirmesinin kilidini aç!
+        if (resolveAdCloseRef.current) {
+          resolveAdCloseRef.current();
+          resolveAdCloseRef.current = null;
+        }
+      },
+    );
+
+    interstitial.load();
+
+    return () => {
+      unsubscribeLoaded();
+      unsubscribeClosed();
+    };
+  }, []);
 
   useEffect(() => {
     isMounted.current = true;
@@ -133,12 +175,46 @@ export default function GameScreen() {
 
   const restartGame = () => {
     playClickSound();
+    let adPromise = Promise.resolve();
+
+    if (isAdLoaded) {
+      setIsAdPlaying(true);
+      adPromise = new Promise((resolve) => {
+        resolveAdCloseRef.current = resolve;
+      });
+      interstitial.show();
+    }
+
     historyRef.current = [];
     adventureIdRef.current = null;
-    loadNextStep(null);
+    loadNextStep(null, adPromise);
   };
 
-  const loadNextStep = async (choice: string | null) => {
+  const handleOptionPress = (opt: string) => {
+    playClickSound();
+    let adPromise = Promise.resolve();
+
+    // HER 5 ADIMDA BİR REKLAM GÖSTER VE ARKA PLANDA YÜKLEMEYİ BAŞLAT
+    if (
+      historyRef.current.length > 0 &&
+      historyRef.current.length % 5 === 0 &&
+      isAdLoaded
+    ) {
+      setIsAdPlaying(true);
+      adPromise = new Promise((resolve) => {
+        resolveAdCloseRef.current = resolve;
+      });
+      interstitial.show();
+    }
+
+    loadNextStep(opt, adPromise);
+  };
+
+  // adPromise: Reklam açıksa kapanmasını bekler, değilse direkt geçer
+  const loadNextStep = async (
+    choice: string | null,
+    adPromise: Promise<void> = Promise.resolve(),
+  ) => {
     requestCounter.current += 1;
     const myReq = requestCounter.current;
     setIsLoading(true);
@@ -180,12 +256,16 @@ export default function GameScreen() {
             try {
               const uri = await fetchTTS(p.text, p.voiceType);
               audioUris.push(uri);
-              await new Promise((r) => setTimeout(r, 500)); // İstekler arası bekleme
+              await new Promise((r) => setTimeout(r, 400));
             } catch (e) {
               audioUris.push(null);
             }
           }
         }
+
+        // BÜYÜ BURADA: Eğer reklam izleniyorsa oyun burada bekler.
+        // Eğer zaten izlendi ve bittiyse (veya hiç çıkmadıysa) zerre beklemeden alt satıra geçer!
+        await adPromise;
 
         setIsLoading(false);
         setIsTyping(true);
@@ -231,8 +311,14 @@ export default function GameScreen() {
 
   return (
     <View style={styles.mainWrapper}>
-      <StatusBar style="light" />
-      {isLoading && (
+      {/* SİYAH PERDE: Sızmayı %100 engeller */}
+      {isAdPlaying && <View style={styles.blackScreenOverlay} />}
+
+      {/* Reklam süresince status bar gizlenir ki orasından da sızmasın */}
+      <StatusBar style="light" hidden={isAdPlaying} />
+
+      {/* GEÇİŞ EKRANI: Sadece yükleniyorsa VE reklam ekranda değilse çıkar */}
+      {isLoading && !isAdPlaying && (
         <View style={styles.transitionContainer}>
           <ImageBackground
             source={require("../assets/images/gecis_2.png")}
@@ -368,7 +454,7 @@ export default function GameScreen() {
                       styles.optionButton,
                       (isTyping || isLoading) && { opacity: 0.5 },
                     ]}
-                    onPress={() => loadNextStep(opt)}
+                    onPress={() => handleOptionPress(opt)}
                     disabled={isLoading || isTyping}
                   >
                     <Text style={styles.optionText}>
@@ -428,6 +514,11 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: "#1a0b12" },
+  blackScreenOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000",
+    zIndex: 99999, // Reklam ekranda iken sızmayı engeller
+  },
   bgImage: { flex: 1 },
   transitionContainer: { ...StyleSheet.absoluteFillObject, zIndex: 999 },
   transitionOverlayLayer: {

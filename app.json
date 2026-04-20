@@ -18,10 +18,9 @@
         "foregroundImage": "./assets/images/iconn.png"
       },
       "backgroundColor": "#000000",
-      "permissions": ["INTERNET", "INTERNET"],
+      "permissions": ["INTERNET"],
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.LMCLSEM"
+      "predictiveBackGestureEnabled": false
     },
     "androidNavigationBar": {
       "visible": "immersive",
