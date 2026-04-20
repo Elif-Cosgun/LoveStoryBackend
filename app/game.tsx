@@ -48,7 +48,6 @@ export default function GameScreen() {
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
-  // AYARLAR
   const [isSettingsVisible, setIsSettingsVisible] = useState(false);
   const [isMusicEnabled, setIsMusicEnabled] = useState(
     params.initialMusic === "true",
@@ -80,13 +79,19 @@ export default function GameScreen() {
   const requestCounter = useRef(0);
   const isMounted = useRef(true);
 
-  // VERİTABANI DUPLİKE SORUNUNU ÇÖZEN HAFIZA
+  // Supabase Çift Kayıt Engelleyici Hafızalar
   const adventureIdRef = useRef<string | null>(
     (params.adventureId as string) || null,
   );
+  const hasStarted = useRef(false); // Oyunun çift başlamasını engelleyen KİLİT
 
   useEffect(() => {
     isMounted.current = true;
+
+    // Çift Tetiklenmeyi Engelle (Sadece bir kere çalışır)
+    if (hasStarted.current) return;
+    hasStarted.current = true;
+
     const startMusic = async () => {
       try {
         const { sound } = await Audio.Sound.createAsync(
@@ -211,11 +216,11 @@ export default function GameScreen() {
 
         let audioUris: any[] = [];
         if (data.parts) {
-          audioUris = await Promise.all(
-            data.parts.map((p: any) =>
-              fetchTTS(p.text, p.voiceType || "narrator_soft"),
-            ),
-          );
+          // ÇÖZÜM: Promise.all YERİNE SIRAYLA İSTEK (ElevenLabs Spam Korumasını Aşmak İçin)
+          for (const p of data.parts) {
+            const uri = await fetchTTS(p.text, p.voiceType || "narrator");
+            audioUris.push(uri);
+          }
         }
 
         setIsLoading(false);
@@ -288,7 +293,6 @@ export default function GameScreen() {
       <StatusBar style="light" />
       {isLoading && (
         <View style={styles.transitionContainer}>
-          {/* GEÇİŞ EKRANI (gecis_2.png) */}
           <ImageBackground
             source={require("../assets/images/gecis_2.png")}
             style={{ flex: 1 }}
@@ -297,7 +301,7 @@ export default function GameScreen() {
             <View style={styles.transitionOverlayLayer}>
               <ActivityIndicator size="large" color="#f6adf4" />
               <Text style={styles.loadingText}>
-                Kaderin İplikleri Dokunuyor...
+                Kaderin iplikleri dokunuyor...
               </Text>
             </View>
           </ImageBackground>
@@ -306,7 +310,6 @@ export default function GameScreen() {
 
       {currentPart?.isEnd ? (
         <View style={styles.fullScreenEnd}>
-          {/* ZAFER VEYA YENİLGİ GÖRSELİ */}
           <ImageBackground
             source={
               currentPart?.endType === "good"
@@ -318,7 +321,6 @@ export default function GameScreen() {
           >
             <SafeAreaView style={styles.endSafeArea}>
               <View style={styles.endCenteredWrapper}>
-                {/* MERKEZİ FİNAL KUTUSU */}
                 <View
                   style={[
                     styles.endContentCenteredPanel,
@@ -341,7 +343,6 @@ export default function GameScreen() {
                       style={{ alignSelf: "center", marginBottom: 10 }}
                     />
                   )}
-
                   <Text
                     style={[
                       styles.endTitle,
@@ -354,9 +355,7 @@ export default function GameScreen() {
                       ? "AŞKI BULDUN!"
                       : "KALP KIRIKLIĞI"}
                   </Text>
-
                   <Text style={styles.endDescriptionText}>{displayedText}</Text>
-
                   <View style={styles.endButtonRow}>
                     <TouchableOpacity
                       style={[
@@ -848,7 +847,6 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 6,
   },
-
   optionsPanel: { paddingHorizontal: 15, paddingBottom: 15 },
   optionButton: {
     flexDirection: "row",
@@ -877,8 +875,6 @@ const styles = StyleSheet.create({
 
   fullScreenEnd: { flex: 1, backgroundColor: "#1a0b12" },
   endSafeArea: { flex: 1 },
-
-  // YENİ MERKEZİ FİNAL TASARIMI
   endCenteredWrapper: {
     flex: 1,
     justifyContent: "center",
@@ -900,7 +896,6 @@ const styles = StyleSheet.create({
   },
   endPanelGood: { borderColor: "#f6adf4" },
   endPanelBad: { borderColor: "#ff4444" },
-
   endTitle: {
     fontSize: 36,
     textAlign: "center",
@@ -929,7 +924,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     width: "100%",
   },
-
   gothicButton: {
     flex: 1,
     height: 50,
@@ -1008,7 +1002,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ff1493",
   },
-
   settingRowContainer: {
     marginVertical: 12,
     paddingBottom: 18,

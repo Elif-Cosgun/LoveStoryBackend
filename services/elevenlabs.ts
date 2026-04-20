@@ -9,12 +9,15 @@ export const fetchTTS = async (text: string, voiceType: string) => {
       },
     );
 
-    if (!response.ok) throw new Error("TTS Sunucu Hatası");
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Vercel TTS Hatası:", errText); // Gerçek hatayı terminale yazar
+      throw new Error("TTS Sunucu Hatası");
+    }
 
     const data = await response.json();
 
     if (data.audioContent) {
-      // Expo-AV için data URI formatına getiriyoruz
       return `data:audio/mpeg;base64,${data.audioContent}`;
     }
     return null;
