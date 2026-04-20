@@ -19,6 +19,7 @@ import {
   Image,
   ImageBackground,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -79,7 +80,7 @@ export default function GameScreen() {
   const requestCounter = useRef(0);
   const isMounted = useRef(true);
 
-  // VERİTABANI DUPLİKE SORUNUNU ÇÖZEN HAFIZA (useRef)
+  // VERİTABANI DUPLİKE SORUNUNU ÇÖZEN HAFIZA
   const adventureIdRef = useRef<string | null>(
     (params.adventureId as string) || null,
   );
@@ -182,7 +183,6 @@ export default function GameScreen() {
       payload = "[RESUME] SİSTEM MESAJI: Oyuncu geri döndü.";
 
     try {
-      // DİKKAT: adventureIdRef.current gönderilerek eski ID'nin unutulması engellendi
       const data = await fetchStoryStep(
         theme,
         payload,
@@ -201,7 +201,6 @@ export default function GameScreen() {
       }
 
       if (data) {
-        // Yeni ID gelirse hafızaya kazı
         if (data.adventureId) adventureIdRef.current = data.adventureId;
 
         setInventory(data.inventory || []);
@@ -289,136 +288,141 @@ export default function GameScreen() {
       <StatusBar style="light" />
       {isLoading && (
         <View style={styles.transitionContainer}>
-          <View style={styles.transitionOverlayLayer}>
-            <ActivityIndicator size="large" color="#FFD700" />
-            <Text style={styles.loadingText}>AŞK YAZILIYOR...</Text>
-          </View>
+          {/* GEÇİŞ EKRANI (gecis_2.png) */}
+          <ImageBackground
+            source={require("../assets/images/gecis_2.png")}
+            style={{ flex: 1 }}
+            resizeMode="cover"
+          >
+            <View style={styles.transitionOverlayLayer}>
+              <ActivityIndicator size="large" color="#f6adf4" />
+              <Text style={styles.loadingText}>
+                Kaderin iplikleri dokunuyor...
+              </Text>
+            </View>
+          </ImageBackground>
         </View>
       )}
 
       {currentPart?.isEnd ? (
         <View style={styles.fullScreenEnd}>
+          {/* ZAFER VEYA YENİLGİ GÖRSELİ */}
           <ImageBackground
-            source={require("../assets/images/image_0.png")}
+            source={
+              currentPart?.endType === "good"
+                ? require("../assets/images/zafer.png")
+                : require("../assets/images/yenilgi.png")
+            }
             style={{ flex: 1 }}
             resizeMode="cover"
           >
             <SafeAreaView style={styles.endSafeArea}>
-              <View style={{ alignItems: "center", paddingTop: 20 }}>
+              <View style={styles.endCenteredWrapper}>
+                {/* MERKEZİ FİNAL KUTUSU */}
                 <View
                   style={[
-                    styles.badge,
-                    currentPart?.endType === "bad" && {
-                      backgroundColor: "#440000",
-                      borderColor: "#ff0000",
-                    },
+                    styles.endContentCenteredPanel,
+                    currentPart?.endType === "good"
+                      ? styles.endPanelGood
+                      : styles.endPanelBad,
                   ]}
                 >
+                  {currentPart?.endType === "good" ? (
+                    <Heart
+                      color="#f6adf4"
+                      size={56}
+                      style={{ alignSelf: "center", marginBottom: 10 }}
+                      fill="#f6adf4"
+                    />
+                  ) : (
+                    <HeartCrack
+                      color="#ff4444"
+                      size={56}
+                      style={{ alignSelf: "center", marginBottom: 10 }}
+                    />
+                  )}
+
                   <Text
                     style={[
-                      styles.badgeText,
-                      currentPart?.endType === "bad" && { color: "#ff4444" },
+                      styles.endTitle,
+                      currentPart?.endType === "good"
+                        ? styles.endTitleGood
+                        : styles.endTitleBad,
                     ]}
                   >
-                    FİNAL
+                    {currentPart?.endType === "good"
+                      ? "AŞKI BULDUN!"
+                      : "KALP KIRIKLIĞI"}
                   </Text>
-                </View>
-              </View>
 
-              <View style={styles.endContentBottomPanel}>
-                {currentPart?.endType === "good" ? (
-                  <Heart
-                    color="#FFD700"
-                    size={48}
-                    style={{ alignSelf: "center", marginBottom: 15 }}
-                    fill="#FFD700"
-                  />
-                ) : (
-                  <HeartCrack
-                    color="#ff4444"
-                    size={48}
-                    style={{ alignSelf: "center", marginBottom: 15 }}
-                  />
-                )}
-                <Text
-                  style={[
-                    styles.endTitle,
-                    currentPart?.endType === "good"
-                      ? styles.endTitleGood
-                      : styles.endTitleBad,
-                  ]}
-                >
-                  {currentPart?.endType === "good"
-                    ? "MUTLU SON"
-                    : "KALP KIRIKLIĞI"}
-                </Text>
-                <Text style={styles.endDescriptionText}>{displayedText}</Text>
+                  <Text style={styles.endDescriptionText}>{displayedText}</Text>
 
-                <View style={styles.endButtonRow}>
-                  <TouchableOpacity
-                    style={[
-                      styles.gothicButton,
-                      currentPart?.endType === "bad" && {
-                        backgroundColor: "rgba(0,0,0,0.8)",
-                        borderColor: "#ff4444",
-                      },
-                    ]}
-                    onPress={goHome}
-                  >
-                    <View style={styles.gothicButtonInner}>
-                      <Home
-                        color={
-                          currentPart?.endType === "good"
-                            ? "#FFD700"
-                            : "#ff4444"
-                        }
-                        size={16}
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text
-                        style={[
-                          styles.gothicButtonText,
-                          currentPart?.endType === "bad" && {
-                            color: "#ff4444",
-                          },
-                        ]}
-                      >
-                        ANA SAYFA
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.gothicButton,
-                      currentPart?.endType === "bad" && {
-                        backgroundColor: "rgba(0,0,0,0.8)",
-                        borderColor: "#ff4444",
-                      },
-                    ]}
-                    onPress={restartGame}
-                  >
-                    <View style={styles.gothicButtonInner}>
-                      <RefreshCw
-                        color={
-                          currentPart?.endType === "good"
-                            ? "#FFD700"
-                            : "#ff4444"
-                        }
-                        size={16}
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text
-                        style={[
-                          styles.gothicButtonText,
-                          currentPart?.endType === "bad" && {
-                            color: "#ff4444",
-                          },
-                        ]}
-                      >
-                        YENİDEN DENE
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+                  <View style={styles.endButtonRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.gothicButton,
+                        currentPart?.endType === "bad" && {
+                          backgroundColor: "rgba(0,0,0,0.8)",
+                          borderColor: "#ff4444",
+                        },
+                      ]}
+                      onPress={goHome}
+                    >
+                      <View style={styles.gothicButtonInner}>
+                        <Home
+                          color={
+                            currentPart?.endType === "good"
+                              ? "#f6adf4"
+                              : "#ff4444"
+                          }
+                          size={16}
+                          style={{ marginRight: 8 }}
+                        />
+                        <Text
+                          style={[
+                            styles.gothicButtonText,
+                            currentPart?.endType === "bad" && {
+                              color: "#ff4444",
+                            },
+                          ]}
+                        >
+                          ANA SAYFA
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.gothicButton,
+                        currentPart?.endType === "bad" && {
+                          backgroundColor: "rgba(0,0,0,0.8)",
+                          borderColor: "#ff4444",
+                        },
+                      ]}
+                      onPress={restartGame}
+                    >
+                      <View style={styles.gothicButtonInner}>
+                        <RefreshCw
+                          color={
+                            currentPart?.endType === "good"
+                              ? "#f6adf4"
+                              : "#ff4444"
+                          }
+                          size={16}
+                          style={{ marginRight: 8 }}
+                        />
+                        <Text
+                          style={[
+                            styles.gothicButtonText,
+                            currentPart?.endType === "bad" && {
+                              color: "#ff4444",
+                            },
+                          ]}
+                        >
+                          TEKRAR DENE
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             </SafeAreaView>
@@ -436,7 +440,7 @@ export default function GameScreen() {
           >
             <View style={styles.topBar}>
               <TouchableOpacity onPress={goHome} style={styles.iconCircle}>
-                <Home color="#FFD700" size={20} />
+                <Home color="#f6adf4" size={20} />
               </TouchableOpacity>
               <View style={styles.badge}>
                 <Text
@@ -450,11 +454,10 @@ export default function GameScreen() {
                 }}
                 style={styles.iconCircle}
               >
-                <Settings color="#FFD700" size={20} />
+                <Settings color="#f6adf4" size={20} />
               </TouchableOpacity>
             </View>
 
-            {/* GÖRSEL BOYUTU ÇOK DAHA BÜYÜTÜLDÜ (Ekranın %45'i) */}
             <View style={styles.imageContainer}>
               <Image
                 source={{
@@ -469,7 +472,6 @@ export default function GameScreen() {
             </View>
 
             <View style={styles.bottomSectionPanel}>
-              {/* METİN ALANI 5 SATIRA SABİTLENDİ */}
               <View style={styles.storyContainer}>
                 <ScrollView
                   ref={scrollViewRef}
@@ -482,7 +484,6 @@ export default function GameScreen() {
                 </ScrollView>
               </View>
 
-              {/* BUTONLAR KÜÇÜLTÜLDÜ VE DAHA ZARİF YAPILDI */}
               <View style={styles.optionsPanel}>
                 {currentPart?.options?.map((opt: string, index: number) => {
                   const isMiniGameTrigger = activeMiniGame && index === 0;
@@ -514,7 +515,7 @@ export default function GameScreen() {
                         <Sparkles color="#fff" size={14} />
                       ) : (
                         <Heart
-                          color={isTyping ? "#888" : "#FFD700"}
+                          color={isTyping ? "#888" : "#f6adf4"}
                           size={14}
                         />
                       )}
@@ -754,18 +755,22 @@ const styles = StyleSheet.create({
   transitionContainer: { ...StyleSheet.absoluteFillObject, zIndex: 999 },
   transitionOverlayLayer: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#1a0b12",
+    backgroundColor: "rgba(26, 11, 18, 0.7)",
     justifyContent: "center",
     alignItems: "center",
   },
   safeArea: { flex: 1 },
   loadingText: {
-    color: "#FFD700",
+    color: "#f6adf4",
     marginTop: 20,
     letterSpacing: 2,
-    fontSize: 14,
-    fontWeight: "900",
+    fontSize: 16,
+    fontWeight: "600",
+    fontStyle: "italic",
+    textShadowColor: "#000",
+    textShadowRadius: 4,
   },
+
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -786,24 +791,23 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 5,
     borderWidth: 1,
-    borderColor: "#FFD700",
+    borderColor: "#f6adf4",
   },
   badge: {
-    backgroundColor: "rgba(255, 215, 0, 0.1)",
+    backgroundColor: "rgba(246, 173, 244, 0.1)",
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: "rgba(255, 215, 0, 0.3)",
+    borderColor: "rgba(246, 173, 244, 0.3)",
   },
   badgeText: {
-    color: "#FFD700",
+    color: "#f6adf4",
     fontSize: 11,
     fontWeight: "bold",
     letterSpacing: 1,
   },
 
-  // GÖRSEL BOYUTU EKRANIN %45'İNE ÇIKARILDI (Daha Önce 0.35 idi)
   imageContainer: {
     width: width * 0.88,
     height: height * 0.45,
@@ -829,16 +833,9 @@ const styles = StyleSheet.create({
   bottomSectionPanel: {
     flex: 1,
     width: "100%",
-    backgroundColor: "rgba(20, 5, 10, 0.65)",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    backgroundColor: "transparent",
     paddingTop: 15,
-    borderWidth: 1.5,
-    borderColor: "#FFD700",
-    borderBottomWidth: 0,
   },
-
-  // METİN KUTUSU 5 SATIR (110px) OLARAK SABİTLENDİ
   storyContainer: { height: 110, paddingHorizontal: 20, marginBottom: 5 },
   storyText: {
     color: "#fff",
@@ -848,49 +845,73 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     fontWeight: "500",
     textShadowColor: "#000",
-    textShadowRadius: 4,
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 6,
   },
 
-  // BUTONLAR İNCELTİLDİ VE DAHA KİBAR HALE GELDİ
   optionsPanel: { paddingHorizontal: 15, paddingBottom: 15 },
   optionButton: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "rgba(255, 215, 0, 0.12)",
+    backgroundColor: "rgba(246, 173, 244, 0.12)",
     padding: 10,
     borderRadius: 12,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: "rgba(255, 215, 0, 0.3)",
+    borderColor: "rgba(246, 173, 244, 0.3)",
   },
   miniGameTriggerButton: {
     backgroundColor: "rgba(255, 20, 147, 0.3)",
     borderColor: "#ff1493",
   },
-  optionText: { color: "#FFD700", fontSize: 13, flex: 1, fontWeight: "bold" },
+  optionText: {
+    color: "#fff",
+    fontSize: 13,
+    flex: 1,
+    fontWeight: "bold",
+    textShadowColor: "#000",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
+  },
 
   fullScreenEnd: { flex: 1, backgroundColor: "#1a0b12" },
   endSafeArea: { flex: 1 },
-  endContentBottomPanel: {
+
+  // YENİ MERKEZİ FİNAL TASARIMI
+  endCenteredWrapper: {
     flex: 1,
-    justifyContent: "flex-end",
-    padding: 25,
-    paddingBottom: 50,
-    backgroundColor: "rgba(20, 5, 10, 0.7)",
-    borderRadius: 25,
-    margin: 15,
-    borderWidth: 2,
-    borderColor: "#FFD700",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
+  endContentCenteredPanel: {
+    width: "100%",
+    backgroundColor: "rgba(20, 5, 10, 0.85)",
+    borderRadius: 25,
+    padding: 30,
+    borderWidth: 2,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  endPanelGood: { borderColor: "#f6adf4" },
+  endPanelBad: { borderColor: "#ff4444" },
+
   endTitle: {
-    fontSize: 32,
+    fontSize: 36,
     textAlign: "center",
     marginBottom: 15,
     fontWeight: "bold",
+    textShadowColor: "#000",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 6,
   },
   endTitleBad: { color: "#ff4444" },
-  endTitleGood: { color: "#FFD700" },
+  endTitleGood: { color: "#f6adf4" },
   endDescriptionText: {
     fontSize: 16,
     lineHeight: 26,
@@ -899,25 +920,36 @@ const styles = StyleSheet.create({
     marginBottom: 35,
     color: "#fff",
     fontWeight: "600",
+    textShadowColor: "#000",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 6,
   },
   endButtonRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     width: "100%",
   },
+
   gothicButton: {
     flex: 1,
     height: 50,
     marginHorizontal: 8,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 20, 147, 0.15)",
+    backgroundColor: "rgba(246, 173, 244, 0.15)",
     borderWidth: 1.5,
-    borderColor: "#ff1493",
+    borderColor: "#f6adf4",
     justifyContent: "center",
     alignItems: "center",
   },
   gothicButtonInner: { flexDirection: "row", alignItems: "center" },
-  gothicButtonText: { color: "#fff", fontWeight: "bold", fontSize: 13 },
+  gothicButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 13,
+    textShadowColor: "#000",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
+  },
 
   miniGameCloseBtn: { position: "absolute", top: 15, right: 15, zIndex: 10 },
   riddleInputRow: { flexDirection: "row", width: "100%", alignItems: "center" },
@@ -927,7 +959,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#FFD700",
+    borderColor: "#f6adf4",
     marginRight: 10,
     color: "#fff",
   },
@@ -950,7 +982,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 35,
     padding: 25,
     borderWidth: 2,
-    borderColor: "#FFD700",
+    borderColor: "#f6adf4",
     borderBottomWidth: 0,
   },
   modalHeader: {
@@ -959,7 +991,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitleDark: {
-    color: "#FFD700",
+    color: "#f6adf4",
     fontSize: 26,
     fontWeight: "bold",
     fontFamily: Platform.OS === "ios" ? "SnellRoundhand" : "serif",
@@ -990,7 +1022,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   slider: { width: "100%", height: 40 },
-  settingLabel: { color: "#FFD700", fontSize: 18, fontWeight: "bold" },
+  settingLabel: { color: "#f6adf4", fontSize: 18, fontWeight: "bold" },
   settingSubLabel: { color: "#aaa", fontSize: 13, marginTop: 4 },
   toggleBtn: {
     paddingHorizontal: 16,

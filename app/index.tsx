@@ -100,7 +100,6 @@ export default function HomeScreen() {
           staysActiveInBackground: false,
           shouldDuckAndroid: true,
         });
-
         let storedId = await SecureStore.getItemAsync("user_unique_id");
         if (!storedId) {
           storedId = `user_${Math.random().toString(36).substring(2, 9)}`;
@@ -156,18 +155,12 @@ export default function HomeScreen() {
             await bgmSound.current.playAsync();
             await bgmSound.current.setVolumeAsync(musicVolume);
           }
-        } catch (e) {
-          console.log("happy.mp3 yüklenemedi.");
-        }
+        } catch (e) {}
       };
-
       startMusic();
-
       return () => {
         isActive = false;
-        if (bgmSound.current) {
-          bgmSound.current.pauseAsync();
-        }
+        if (bgmSound.current) bgmSound.current.pauseAsync();
       };
     }, [isMusicEnabled, musicVolume]),
   );
@@ -192,10 +185,7 @@ export default function HomeScreen() {
       setIsAlertVisible(true);
       return;
     }
-
-    if (bgmSound.current) {
-      await bgmSound.current.stopAsync();
-    }
+    if (bgmSound.current) await bgmSound.current.stopAsync();
 
     router.push({
       pathname: "/game",
@@ -219,12 +209,10 @@ export default function HomeScreen() {
     setIsHistoryLoading(true);
     setIsHistoryVisible(true);
     try {
-      const timestamp = new Date().getTime(); // Önbelleği (cache) kırmak için
+      const timestamp = new Date().getTime();
       const response = await fetch(
         `https://love-story-backend-six.vercel.app/api/get-adventure?userId=${userId}&t=${timestamp}`,
-        {
-          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-        },
+        { headers: { "Cache-Control": "no-cache", Pragma: "no-cache" } },
       );
       const data = await response.json();
       setAdventures(Array.isArray(data) ? data : []);
@@ -247,19 +235,15 @@ export default function HomeScreen() {
     } catch (e) {}
   };
 
-  // TAM GÜVENLİ GEÇMİŞ FİLTRELEME
   const filteredAdventures = adventures.filter((adv) => {
-    const isDone =
-      adv.is_completed === true ||
-      adv.is_completed === "true" ||
-      adv.is_completed === 1;
+    const isDone = adv.is_completed === true || adv.is_completed === "true";
     return activeTab === "completed" ? isDone : !isDone;
   });
 
   return (
     <SafeAreaProvider style={styles.mainWrapper}>
       <ImageBackground
-        source={require("../assets/images/bg_romantic.jpg")}
+        source={require("../assets/images/image_0.jpg")}
         style={styles.bgImage}
         resizeMode="cover"
       >
@@ -274,10 +258,10 @@ export default function HomeScreen() {
               }}
               style={styles.smallIconBtn}
             >
-              <Settings size={22} color="#FFD700" />
+              <Settings size={22} color="#f6adf4" />
             </TouchableOpacity>
             <TouchableOpacity onPress={openHistory} style={styles.smallIconBtn}>
-              <BookOpen size={22} color="#FFD700" />
+              <BookOpen size={22} color="#f6adf4" />
             </TouchableOpacity>
           </View>
 
@@ -297,7 +281,7 @@ export default function HomeScreen() {
                     HAYALİNDEKİ AŞK TEMASI
                   </Text>
                   <View style={styles.inputWrapper}>
-                    <Heart size={18} color="#FFD700" style={styles.inputIcon} />
+                    <Heart size={18} color="#f6adf4" style={styles.inputIcon} />
                     <TextInput
                       placeholder="Kendi romantik hikayeni yaz..."
                       placeholderTextColor="rgba(255, 255, 255, 0.5)"
@@ -384,7 +368,7 @@ export default function HomeScreen() {
         <Modal visible={isAlertVisible} animationType="fade" transparent={true}>
           <View style={styles.modalOverlayCen}>
             <View style={styles.customAlertBox}>
-              <Heart color="#FFD700" size={36} style={{ marginBottom: 15 }} />
+              <Heart color="#f6adf4" size={36} style={{ marginBottom: 15 }} />
               <Text style={styles.alertTitle}>AŞK İLHAM İSTER</Text>
               <Text style={styles.alertMessage}>
                 Lütfen başlamadan önce nasıl bir aşk hikayesi yaşamak istediğini
@@ -731,7 +715,6 @@ export default function HomeScreen() {
   );
 }
 
-// KRALİYET ROMANTİZMİ TASARIMI
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: "#1a0b12" },
   bgImage: { flex: 1 },
@@ -756,7 +739,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#FFD700",
+    borderColor: "#f6adf4",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
@@ -777,7 +760,7 @@ const styles = StyleSheet.create({
     fontSize: Platform.OS === "ios" ? 56 : 46,
     fontFamily: Platform.OS === "ios" ? "SnellRoundhand" : "serif",
     fontWeight: "bold",
-    color: "#FFD700",
+    color: "#f6adf4",
     textAlign: "center",
     letterSpacing: 2,
     textShadowColor: "rgba(255, 20, 147, 0.8)",
@@ -800,7 +783,7 @@ const styles = StyleSheet.create({
     padding: 25,
     borderRadius: 25,
     borderWidth: 1.5,
-    borderColor: "#FFD700",
+    borderColor: "#f6adf4",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.5,
@@ -808,7 +791,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   sectionLabel: {
-    color: "#FFD700",
+    color: "#f6adf4",
     fontSize: 13,
     fontWeight: "bold",
     marginBottom: 12,
@@ -819,7 +802,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     borderBottomWidth: 1.5,
-    borderBottomColor: "#FFD700",
+    borderBottomColor: "#f6adf4",
     alignItems: "center",
     paddingHorizontal: 5,
     paddingVertical: 8,
@@ -842,16 +825,16 @@ const styles = StyleSheet.create({
     marginRight: 12,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(255, 215, 0, 0.4)",
+    borderColor: "rgba(246, 173, 244, 0.4)",
     backgroundColor: "rgba(0,0,0,0.4)",
     height: 38,
   },
   activeCard: {
-    borderColor: "#FFD700",
+    borderColor: "#f6adf4",
     backgroundColor: "rgba(255, 20, 147, 0.3)",
   },
   cardTitle: { color: "#ccc", fontSize: 14, fontWeight: "600" },
-  activeCardTitle: { color: "#FFD700", fontWeight: "bold" },
+  activeCardTitle: { color: "#f6adf4", fontWeight: "bold" },
 
   durationSection: { width: "100%", marginBottom: 20 },
   durationRow: {
@@ -875,12 +858,12 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   activeDText: {
-    color: "#FFD700",
+    color: "#f6adf4",
     textShadowColor: "#ff1493",
     textShadowRadius: 8,
   },
   durationSeparator: {
-    color: "rgba(255, 215, 0, 0.2)",
+    color: "rgba(246, 173, 244, 0.2)",
     fontSize: 16,
     marginHorizontal: 2,
   },
@@ -894,7 +877,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 5,
     borderWidth: 1,
-    borderColor: "#FFD700",
+    borderColor: "#f6adf4",
     shadowColor: "#ff1493",
     shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.6,
@@ -922,10 +905,10 @@ const styles = StyleSheet.create({
     padding: 30,
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#FFD700",
+    borderColor: "#f6adf4",
   },
   alertTitle: {
-    color: "#FFD700",
+    color: "#f6adf4",
     fontSize: 22,
     fontWeight: "bold",
     marginBottom: 12,
@@ -944,7 +927,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: "#FFD700",
+    borderColor: "#f6adf4",
   },
   alertButtonText: {
     color: "#fff",
@@ -965,7 +948,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 35,
     padding: 25,
     borderWidth: 2,
-    borderColor: "#FFD700",
+    borderColor: "#f6adf4",
     borderBottomWidth: 0,
   },
   modalHeader: {
@@ -974,7 +957,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitleDark: {
-    color: "#FFD700",
+    color: "#f6adf4",
     fontSize: 26,
     fontWeight: "bold",
     fontFamily: Platform.OS === "ios" ? "SnellRoundhand" : "serif",
@@ -1011,14 +994,14 @@ const styles = StyleSheet.create({
   },
   activeTab: { backgroundColor: "rgba(255, 20, 147, 0.2)" },
   tabText: { color: "#888", fontSize: 14, marginLeft: 8, fontWeight: "bold" },
-  activeTabText: { color: "#FFD700" },
+  activeTabText: { color: "#f6adf4" },
   cardWrapper: { marginBottom: 15 },
   adventureCard: {
     backgroundColor: "rgba(30, 0, 10, 0.6)",
     padding: 18,
     borderRadius: 15,
     borderLeftWidth: 5,
-    borderLeftColor: "#FFD700",
+    borderLeftColor: "#f6adf4",
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
@@ -1056,7 +1039,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   slider: { width: "100%", height: 40 },
-  settingLabel: { color: "#FFD700", fontSize: 18, fontWeight: "bold" },
+  settingLabel: { color: "#f6adf4", fontSize: 18, fontWeight: "bold" },
   settingSubLabel: { color: "#aaa", fontSize: 13, marginTop: 4 },
   toggleBtn: {
     paddingHorizontal: 16,

@@ -16,9 +16,7 @@ export default async function handler(req: any, res: any) {
     req.body;
 
   if (!userId || userId === "null") {
-    return res
-      .status(400)
-      .json({ error: "Geçerli bir kullanıcı kimliği (userId) gerekli." });
+    return res.status(400).json({ error: "Kullanıcı ID gerekli." });
   }
 
   const fullContext =
@@ -27,32 +25,14 @@ export default async function handler(req: any, res: any) {
       : "Hikayenin başlangıcı.";
 
   const prompt = `
-    ### SENİN KİMLİĞİN VE ÜSLUBUN:
     Sen Jane Austen ve modern romantik dram tarzında usta bir aşk romanı yazarısın. 
-
-    ### BAĞLAM:
-    - OYUNCUNUN GİRDİĞİ TEMA: ${theme}
-    - ŞİMDİYE KADAR YAŞANANLAR: ${fullContext}
-    - SON SEÇİM: ${choice || "Başlangıç"}
-    - TEMPO: ${duration}
-
-    ### KURAL 1: İÇERİK GELİŞTİRME VE SINIRLAR:
-    - Orijinal, edebi ve detaylı kurgula.
-    - Cinsel içerik (NSFW), aşırı şiddet veya 18+ uygunsuz detaylar KESİNLİKLE YASAKTIR. Romantizm ve duygusal derinlikte kal.
-
-    ### KURAL 2: GÖRSEL VE HİKAYE TUTARLILIĞI:
-    - Oyuncuyu aynı döngüde tutma. Hikaye ilerlesin.
-    - 'imagePrompt' üretirken karakterlerin fiziksel özelliklerini KORU.
+    TEMA: ${theme}
+    GEÇMİŞ: ${fullContext}
+    SEÇİM: ${choice || "Başlangıç"}
+    TEMPO: ${duration}
     
-    ### KURAL 3: SESLENDİRME:
-    - Anlatıcı için: "narrator_soft" veya "narrator_dramatic"
-    - Kadın: "woman_sweet", Erkek: "man_charming" veya "man_deep"
-    
-    ### KURAL 4: SEÇENEKLER VE FİNAL:
-    - DAİMA tam olarak 4 farklı seçenek sun.
-    - Bitişlerde "isEnd": true olmalı. Mutlu son "good", kötü son "bad" olmalı.
-
-    ### JSON FORMATI:
+    KURAL: 4 seçenek sun. Cinsel içerik kesinlikle yasaktır, romantizmde kal. Karakterlerin fiziksel özelliklerini hikaye boyunca koru. 
+    JSON FORMATI:
     {
       "parts": [ { "text": "Metin...", "voiceType": "narrator_soft" } ],
       "options": ["seçenek 1", "seçenek 2", "seçenek 3", "seçenek 4"],
@@ -92,29 +72,29 @@ export default async function handler(req: any, res: any) {
     const combinedText = result.parts?.map((p: any) => p.text).join(" ") || "";
 
     const upsertData = {
+      theme: theme,
       history: updatedHistory,
-      is_completed: result.isEnd || false,
+      is_completed: result.isEnd === true,
       final_text: result.isEnd ? combinedText : "",
       user_id: userId,
     };
 
-    // ID YÖNETİMİ (DUPLİKE ÖNLEME KISMI)
-    let finalAdventureId =
+    // ID YÖNETİMİ (KESİN ÇÖZÜM)
+    let parsedId =
       adventureId && adventureId !== "null" && adventureId !== "undefined"
         ? adventureId
         : null;
 
-    if (finalAdventureId) {
-      await supabase
-        .from("adventures")
-        .update(upsertData)
-        .eq("id", finalAdventureId);
+    if (parsedId) {
+      // Eğer ID varsa ASLA yeni satır ekleme, SADECE GÜNCELLE
+      await supabase.from("adventures").update(upsertData).eq("id", parsedId);
     } else {
+      // Eğer ID yoksa yeni satır ekle ve ID'yi geri döndür
       const { data: newData } = await supabase
         .from("adventures")
-        .insert([{ theme, ...upsertData }])
+        .insert([upsertData])
         .select();
-      if (newData && newData.length > 0) finalAdventureId = newData[0].id;
+      if (newData && newData.length > 0) parsedId = newData[0].id;
     }
 
     return res
@@ -123,11 +103,11 @@ export default async function handler(req: any, res: any) {
         ...result,
         text: combinedText,
         imageUrl: finalImageUrl,
-        adventureId: finalAdventureId,
+        adventureId: parsedId,
       });
   } catch (error: any) {
     if (error.status === 401)
-      return res.status(401).json({ error: "OpenAI API Anahtarı hatası." });
+      return res.status(401).json({ error: "OpenAI Hatası." });
     return res.status(500).json({ error: error.message });
   }
 }
