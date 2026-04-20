@@ -23,8 +23,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchTTS } from "../services/elevenlabs";
@@ -78,7 +79,6 @@ export default function GameScreen() {
   const requestCounter = useRef(0);
   const isMounted = useRef(true);
 
-  // KESİN ÇÖZÜM: ID HAFIZASI
   const adventureIdRef = useRef<string | null>(
     (params.adventureId as string) || null,
   );
@@ -210,11 +210,12 @@ export default function GameScreen() {
 
         let audioUris: any[] = [];
         if (data.parts && isTtsEnabled) {
-          // ElevenLabs Spam Koruması: Promise.all yerine sırayla sesleri çekiyoruz
           for (const p of data.parts) {
             try {
               const uri = await fetchTTS(p.text, p.voiceType || "narrator");
               audioUris.push(uri);
+              // KESİN ÇÖZÜM: ElevenLabs spam yemesin diye istekler arası nefes alma süresi (600ms)
+              await new Promise((resolve) => setTimeout(resolve, 600));
             } catch (e) {
               audioUris.push(null);
             }
@@ -454,6 +455,7 @@ export default function GameScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* GÖRSEL %42'YE BÜYÜTÜLDÜ, BÖYLECE ALT BOŞLUK TAM KAPANACAK */}
             <View style={styles.imageContainer}>
               <Image
                 source={{
@@ -480,6 +482,7 @@ export default function GameScreen() {
                 </ScrollView>
               </View>
 
+              {/* BOŞLUK ALINDI: paddingBottom 15'e düşürüldü */}
               <View style={styles.optionsPanel}>
                 {currentPart?.options?.map((opt: string, index: number) => {
                   const isMiniGameTrigger = activeMiniGame && index === 0;
@@ -523,6 +526,61 @@ export default function GameScreen() {
           </SafeAreaView>
         </ImageBackground>
       )}
+
+      {/* MİNİ OYUN MODALI */}
+      <Modal
+        visible={isMiniGameModalVisible}
+        animationType="fade"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[styles.modalContent, { height: "auto", paddingBottom: 40 }]}
+          >
+            <TouchableOpacity
+              style={styles.miniGameCloseBtn}
+              onPress={() => {
+                playClickSound();
+                setIsMiniGameModalVisible(false);
+              }}
+            >
+              <X color="#ff1493" size={20} />
+            </TouchableOpacity>
+
+            <View style={{ width: "100%", alignItems: "center" }}>
+              <Heart color="#ff1493" size={32} style={{ marginBottom: 10 }} />
+              <Text style={styles.modalTitleDark}>AŞK FISILTISI</Text>
+              <Text
+                style={[
+                  styles.modalSubtitleDark,
+                  { marginBottom: 20, textAlign: "center" },
+                ]}
+              >
+                {activeMiniGame?.question ||
+                  "Onun kalbini çalacak doğru kelimeyi bul."}
+              </Text>
+              <View style={styles.riddleInputRow}>
+                <TextInput
+                  style={styles.riddleInput}
+                  placeholder="Cevabın..."
+                  placeholderTextColor="#ffb6c1"
+                  value={riddleInput}
+                  onChangeText={setRiddleInput}
+                />
+                <TouchableOpacity
+                  style={styles.riddleSubmitBtn}
+                  onPress={handleRiddleSubmit}
+                >
+                  <Heart color="#fff" size={20} />
+                </TouchableOpacity>
+              </View>
+              {riddleError && (
+                <Text style={styles.riddleErrorText}>{riddleError}</Text>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* AYARLAR MODALI */}
       <Modal
@@ -639,50 +697,6 @@ export default function GameScreen() {
                 }}
               />
             </View>
-
-            <View style={styles.settingRowContainer}>
-              <View style={styles.settingTopRow}>
-                <View>
-                  <Text style={styles.settingLabel}>Aşk Tıkırtısı</Text>
-                  <Text style={styles.settingSubLabel}>Buton tıklama sesi</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={async () => {
-                    playClickSound();
-                    const val = !isSfxEnabled;
-                    setIsSfxEnabled(val);
-                    await AsyncStorage.setItem("sfxEnabled", val.toString());
-                  }}
-                  style={[
-                    styles.toggleBtn,
-                    isSfxEnabled && styles.toggleBtnActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.toggleText,
-                      isSfxEnabled && { color: "#fff" },
-                    ]}
-                  >
-                    {isSfxEnabled ? "AÇIK" : "KAPALI"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <Slider
-                style={styles.slider}
-                minimumValue={0}
-                maximumValue={1}
-                step={0.1}
-                value={sfxVolume}
-                disabled={!isSfxEnabled}
-                minimumTrackTintColor="#ff1493"
-                thumbTintColor={isSfxEnabled ? "#ff1493" : "#888"}
-                onValueChange={async (val) => {
-                  setSfxVolume(val);
-                  await AsyncStorage.setItem("sfxVolume", val.toString());
-                }}
-              />
-            </View>
           </View>
         </View>
       </Modal>
@@ -749,9 +763,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 
+  // GÖRSEL BİRAZ DAHA BÜYÜTÜLDÜ (%42) Kİ BUTONLAR ALTA TAM OTURSUN
   imageContainer: {
     width: width * 0.88,
-    height: height * 0.38,
+    height: height * 0.42,
     alignSelf: "center",
     borderRadius: 20,
     overflow: "hidden",
@@ -790,7 +805,8 @@ const styles = StyleSheet.create({
     textShadowRadius: 6,
   },
 
-  optionsPanel: { paddingHorizontal: 15, paddingBottom: 30 },
+  // ALTAKİ GEREKSİZ BOŞLUK ALINDI
+  optionsPanel: { paddingHorizontal: 15, paddingBottom: 15 },
   optionButton: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -887,6 +903,25 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 4,
   },
+
+  miniGameCloseBtn: { position: "absolute", top: 15, right: 15, zIndex: 10 },
+  riddleInputRow: { flexDirection: "row", width: "100%", alignItems: "center" },
+  riddleInput: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#f6adf4",
+    marginRight: 10,
+    color: "#fff",
+  },
+  riddleSubmitBtn: {
+    backgroundColor: "#ff1493",
+    padding: 12,
+    borderRadius: 10,
+  },
+  riddleErrorText: { color: "#ff4444", marginTop: 15, fontWeight: "bold" },
 
   modalOverlay: {
     flex: 1,

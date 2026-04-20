@@ -47,8 +47,8 @@ export default async function handler(req: any, res: any) {
     - Oyuncunun seçimine göre her adımda zaman ilerlemeli, mekan değişmeli, bir sır ortaya çıkmalı veya yeni bir duygusal eşik aşılmalıdır.
 
     ### KURAL 2: SEÇENEKLER (4 FARKLI YAKLAŞIM)
-    - Oyuncuya DAİMA 4 farklı karakter özelliği yansıtan seçenek sun: 
-      1) Cesur/Flörtöz, 2) Utangaç/Çekingen, 3) Şüpheci/Mantıklı, 4) Esprili/Dramatik.
+    - Oyuncuya DAİMA 4 farklı karakter özelliği yansıtan seçenek sun. (Örn: Cesur, Utangaç, Mantıklı, Dramatik).
+    - DİKKAT: Seçeneklerin başına ASLA "Flörtöz:", "Utangaç:" gibi etiketler YAZMA! Sadece oyuncunun yapacağı eylemi veya söyleyeceği sözü düz bir şekilde yaz.
     - Seçenekler hikayenin yönünü gerçekten değiştirmelidir.
     - EĞER hikaye bitiyorsa (isEnd: true), "options": ["Ana Menüye Dön", "Başa Sar", "Farklı Bir Son Dene", "Yeniden Oyna"] yap.
 
@@ -58,8 +58,9 @@ export default async function handler(req: any, res: any) {
     - KÖTÜ/HÜZÜNLÜ SONLAR ("endType": "bad"): Büyük bir yalanın/sırrın ortaya çıkması, aldatılma, yanlış anlaşılma yüzünden ebedi ayrılık, sadece arkadaş kalma, gururun aşka galip gelmesi, mantık evliliği yapıp mutsuz olma, toksik bağın koparılması vb.
     - Hikaye gidişatına göre adaletli ve mantıklı bir son seç. Çok fazla olumlu ve olumsuz varyasyon kullan, hep aynı finalleri yazma.
 
-    ### KURAL 4: SESLENDİRME VE DİYALOG AYRIMI (parts)
-    - Diyalogları (" ") ve olay anlatımlarını "parts" dizisinde KESİNLİKLE AYIR.
+    ### KURAL 4: SESLENDİRME VE DİYALOG AYRIMI (ÇOK ÖNEMLİ)
+    - Karakterlerin karşılıklı konuşmalarını KESİNLİKLE tırnak içinde ("...") yaz.
+    - Olay anlatımı ve konuşmaları "parts" dizisinde AYIR.
     - SADECE şu voiceType'ları kullan: 
       * "narrator" (Olay anlatımı / Dış ses)
       * "man_charming" (Çekici, genç, romantik erkek başrol)
@@ -76,9 +77,9 @@ export default async function handler(req: any, res: any) {
     {
       "parts": [ 
         { "text": "Ona doğru bir adım attı ve gözlerinin içine baktı.", "voiceType": "narrator" },
-        { "text": "Senden vazgeçmeyeceğim.", "voiceType": "man_charming" }
+        { "text": "\\"Senden vazgeçmeyeceğim.\\"", "voiceType": "man_charming" }
       ],
-      "options": ["seçenek 1", "seçenek 2", "seçenek 3", "seçenek 4"],
+      "options": ["Gülümse ve elini tut.", "Arkanı dönüp git.", "Sessizce gözlerine bak.", "Ona kızgın olduğunu söyle."],
       "imagePrompt": "A highly detailed, cinematic digital painting of...",
       "isEnd": false,
       "endType": "none"
@@ -130,7 +131,7 @@ export default async function handler(req: any, res: any) {
         ? adventureId
         : null;
 
-    // GÜÇLENDİRİLMİŞ ÇİFT KAYIT ENGELLEYİCİ
+    // GÜÇLENDİRİLMİŞ ÇİFT KAYIT ENGELLEYİCİ (UPSERT MANTIĞI)
     if (parsedId) {
       const { error: updateError } = await supabase
         .from("adventures")
@@ -147,14 +148,12 @@ export default async function handler(req: any, res: any) {
     }
 
     console.log("-> BAŞARILI CEVAP DÖNDÜ, ID:", parsedId);
-    return res
-      .status(200)
-      .json({
-        ...result,
-        text: combinedText,
-        imageUrl: finalImageUrl,
-        adventureId: parsedId,
-      });
+    return res.status(200).json({
+      ...result,
+      text: combinedText,
+      imageUrl: finalImageUrl,
+      adventureId: parsedId,
+    });
   } catch (error: any) {
     console.error("-> GENEL SUNUCU HATASI:", error);
     return res.status(500).json({ error: error.message });
